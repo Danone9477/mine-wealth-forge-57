@@ -22,6 +22,7 @@ interface UserData {
   email: string;
   balance: number;
   totalEarnings: number;
+  monthlyEarnings?: number;
   miners: any[];
   lastTaskDate?: string;
   transactions?: any[];
@@ -92,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         balance: 0,
         totalEarnings: 0,
+        monthlyEarnings: 0,
         miners: [],
         transactions: [],
         affiliateBalance: 0,
