@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ const Deposit = () => {
 
   const minDeposit = 100;
 
-  // Suas credenciais corretas da Gibra Pay
+  // Credenciais da Gibra Pay
   const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e";
   const WALLET_ID = "9d2cd54d-720b-490f-b0a9-5c9eace02ff4";
 
@@ -33,7 +34,6 @@ const Deposit = () => {
     
     const depositAmount = parseFloat(amount);
     
-    // Validações básicas apenas
     if (!amount || isNaN(depositAmount) || depositAmount < minDeposit) {
       toast({
         title: "Valor inválido",
@@ -53,55 +53,27 @@ const Deposit = () => {
     }
 
     setLoading(true);
-    console.log('=== INICIANDO DEPÓSITO ===');
-    console.log('Valor:', depositAmount);
-    console.log('Telefone:', phone);
-    console.log('Método:', selectedMethod);
-    console.log('API Key:', GIBRA_PAY_API_KEY);
-    console.log('Wallet ID:', WALLET_ID);
 
     try {
-      // Payload exato conforme documentação
-      const requestBody = {
-        wallet_id: WALLET_ID,
-        amount: depositAmount,
-        phone_number: phone
-      };
-
-      console.log('=== ENVIANDO REQUISIÇÃO ===');
-      console.log('URL:', "https://gibrapay.online/v1/transfer");
-      console.log('Body:', JSON.stringify(requestBody, null, 2));
-      console.log('Headers:', {
-        "Content-Type": "application/json",
-        "API-Key": GIBRA_PAY_API_KEY
-      });
-
       const response = await fetch("https://gibrapay.online/v1/transfer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "API-Key": GIBRA_PAY_API_KEY
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          wallet_id: WALLET_ID,
+          amount: depositAmount,
+          phone_number: phone
+        })
       });
 
-      console.log('=== RESPOSTA RECEBIDA ===');
-      console.log('Status:', response.status);
-      console.log('Status Text:', response.statusText);
-      console.log('Headers:', response.headers);
-
-      // Verificar se a resposta é válida
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Erro na resposta:', errorText);
-        throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Erro HTTP ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('=== RESULTADO FINAL ===');
-      console.log('Resultado completo:', JSON.stringify(result, null, 2));
 
-      // Criar transação baseada na resposta
       const transaction = {
         id: result.data?.id || Date.now().toString(),
         type: 'deposit' as const,
@@ -116,10 +88,17 @@ const Deposit = () => {
         gibra_response: result
       };
 
-      console.log('Transação criada:', transaction);
-
       if (result.status === 'success') {
-        // Sucesso - atualizar saldo
+        // Processar comissão de afiliado se o usuário foi referido
+        let affiliateCommission = 0;
+        if (userData.referredBy) {
+          affiliateCommission = depositAmount * 0.30; // 30% de comissão
+          
+          // Aqui você atualizaria o saldo do afiliado que fez a referência
+          // Em produção, isso seria feito no backend Firebase
+          console.log(`Comissão de ${affiliateCommission} MT para afiliado ${userData.referredBy}`);
+        }
+
         const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
           balance: userData.balance + depositAmount,
@@ -134,7 +113,6 @@ const Deposit = () => {
         setAmount('');
         setPhone('');
       } else {
-        // Falha reportada pela API
         const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
           transactions: updatedTransactions
@@ -148,11 +126,8 @@ const Deposit = () => {
       }
 
     } catch (error) {
-      console.error('=== ERRO COMPLETO ===');
-      console.error('Erro:', error);
-      console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('Erro no depósito:', error);
       
-      // Adicionar transação falhada em caso de erro
       const failedTransaction = {
         id: Date.now().toString(),
         type: 'deposit' as const,
@@ -162,8 +137,7 @@ const Deposit = () => {
         status: 'failed' as const,
         date: new Date().toISOString(),
         description: `Falha no depósito via ${selectedMethod.toUpperCase()}`,
-        error: error instanceof Error ? error.message : 'Erro de conexão',
-        error_details: error instanceof Error ? error.stack : 'N/A'
+        error: error instanceof Error ? error.message : 'Erro de conexão'
       };
 
       const updatedTransactions = [...(userData.transactions || []), failedTransaction];
@@ -171,26 +145,13 @@ const Deposit = () => {
         transactions: updatedTransactions
       });
 
-      let errorMessage = "Erro de conexão com o serviço de pagamento.";
-      
-      if (error instanceof Error) {
-        if (error.message.includes('fetch')) {
-          errorMessage = "Erro de rede. Verifique sua conexão e tente novamente.";
-        } else if (error.message.includes('HTTP')) {
-          errorMessage = "Erro no servidor de pagamento. Tente novamente.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
       toast({
         title: "Erro no depósito",
-        description: errorMessage,
+        description: "Erro de conexão com o serviço de pagamento. Tente novamente.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
-      console.log('=== DEPÓSITO FINALIZADO ===');
     }
   };
 

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,12 +27,10 @@ const Login = () => {
     
     try {
       await login(formData.emailOrUsername, formData.password);
-      // Só navega se o login foi bem-sucedido (sem erro)
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      // Erro já é tratado no AuthContext com toast
-      // Não navega, permanece na tela de login
+      // Permanece na tela de login em caso de erro
     } finally {
       setLoading(false);
     }

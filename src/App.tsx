@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Miners from "./pages/Miners";
 import Deposit from "./pages/Deposit";
 import Withdraw from "./pages/Withdraw";
+import Affiliates from "./pages/Affiliates";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/miners" element={<Miners />} />
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/withdraw" element={<Withdraw />} />
+              <Route path="/affiliates" element={<Affiliates />} />
               <Route path="/history" element={<History />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

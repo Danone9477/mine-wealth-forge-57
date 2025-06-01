@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, User, LogOut, Menu, X } from 'lucide-react';
+import { Coins, User, LogOut, Menu, X, Users } from 'lucide-react';
 
 const Navigation = () => {
   const { user, userData, logout } = useAuth();
@@ -74,6 +74,17 @@ const Navigation = () => {
                   }`}
                 >
                   Levantamento
+                </Link>
+                <Link 
+                  to="/affiliates" 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/affiliates') 
+                      ? 'text-gold-400 bg-gold-400/10' 
+                      : 'text-gray-300 hover:text-gold-400'
+                  }`}
+                >
+                  <Users className="h-4 w-4 inline mr-1" />
+                  Afiliados
                 </Link>
                 
                 <div className="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-700">
@@ -152,6 +163,14 @@ const Navigation = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Levantamento
+                </Link>
+                <Link 
+                  to="/affiliates" 
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Users className="h-4 w-4 inline mr-1" />
+                  Afiliados
                 </Link>
                 <div className="px-3 py-2 border-t border-gray-700 mt-4">
                   <div className="text-sm text-gray-400 mb-2">
