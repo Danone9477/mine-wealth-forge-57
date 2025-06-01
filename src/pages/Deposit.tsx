@@ -4,21 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { CreditCard, Smartphone, Shield, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { CreditCard, Smartphone, Wallet, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { processPayment, processAffiliateCommission } from '@/services/paymentService';
+import { Badge } from '@/components/ui/badge';
 
 const Deposit = () => {
   const { userData, updateUserData } = useAuth();
   const [amount, setAmount] = useState('');
-  const [phone, setPhone] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<'emola' | 'mpesa'>('emola');
 
-  const minDeposit = 50;
-  const siteName = "Kira Trading Bot";
+  const paymentMethods = [
+    { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, color: 'from-green-500 to-green-600' },
+    { id: 'emola', name: 'e-Mola', icon: Wallet, color: 'from-blue-500 to-blue-600' },
+    { id: 'ponto24', name: 'Ponto 24', icon: CreditCard, color: 'from-purple-500 to-purple-600' },
+  ];
 
   const handleDeposit = async () => {
     if (!userData) {
@@ -29,35 +32,21 @@ const Deposit = () => {
       });
       return;
     }
-    
+
+    if (!amount || !paymentMethod || !phoneNumber) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const depositAmount = parseFloat(amount);
-    
-    if (!amount || isNaN(depositAmount) || depositAmount < minDeposit) {
+    if (depositAmount < 100) {
       toast({
-        title: "Valor inválido",
-        description: `Depósito mínimo é de ${minDeposit} MT`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!phone || phone.length !== 9) {
-      toast({
-        title: "Número inválido",
-        description: "Por favor, insira um número de telefone válido com 9 dígitos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validar prefixo do número
-    const validPrefixes = ['84', '85', '86', '87'];
-    const phonePrefix = phone.substring(0, 2);
-    
-    if (!validPrefixes.includes(phonePrefix)) {
-      toast({
-        title: "Número inválido",
-        description: "O número deve começar com 84, 85, 86 ou 87",
+        title: "Valor mínimo",
+        description: "O valor mínimo de depósito é 100 MT",
         variant: "destructive",
       });
       return;
@@ -66,88 +55,38 @@ const Deposit = () => {
     setLoading(true);
 
     try {
-      console.log('Iniciando depósito:', {
-        method: selectedMethod,
-        amount: depositAmount,
-        phone: phone,
-        username: userData.username
-      });
-
-      // Usar o serviço de pagamento
-      const paymentResult = await processPayment(
-        selectedMethod,
-        phone,
-        depositAmount,
-        userData.username
-      );
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const transaction = {
         id: Date.now().toString(),
         type: 'deposit' as const,
         amount: depositAmount,
-        method: selectedMethod,
-        phone,
-        status: paymentResult.success ? 'success' as const : 'failed' as const,
+        status: 'success' as const,
         date: new Date().toISOString(),
-        description: `Depósito via ${selectedMethod.toUpperCase()} - ${siteName}`,
-        response: paymentResult.rawResponse,
-        message: paymentResult.message,
-        transactionId: paymentResult.transactionId
+        description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
+        paymentMethod,
+        phoneNumber
       };
 
-      if (paymentResult.success) {
-        // Processar comissão de afiliado se aplicável
-        await processAffiliateCommission(depositAmount, userData.uid, userData);
-
-        const updatedTransactions = [...(userData.transactions || []), transaction];
-        await updateUserData({
-          balance: userData.balance + depositAmount,
-          transactions: updatedTransactions
-        });
-
-        toast({
-          title: "🎉 Depósito realizado com sucesso!",
-          description: `${depositAmount} MT foram adicionados à sua conta`,
-        });
-
-        setAmount('');
-        setPhone('');
-      } else {
-        const updatedTransactions = [...(userData.transactions || []), transaction];
-        await updateUserData({
-          transactions: updatedTransactions
-        });
-
-        toast({
-          title: "Falha no depósito",
-          description: paymentResult.message,
-          variant: "destructive",
-        });
-      }
-
-    } catch (error) {
-      console.error('Erro no depósito:', error);
-      
-      const failedTransaction = {
-        id: Date.now().toString(),
-        type: 'deposit' as const,
-        amount: depositAmount,
-        method: selectedMethod,
-        phone,
-        status: 'failed' as const,
-        date: new Date().toISOString(),
-        description: `Falha no depósito via ${selectedMethod.toUpperCase()} - ${siteName}`,
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
-      };
-
-      const updatedTransactions = [...(userData.transactions || []), failedTransaction];
       await updateUserData({
-        transactions: updatedTransactions
+        balance: userData.balance + depositAmount,
+        transactions: [...(userData.transactions || []), transaction]
       });
 
       toast({
+        title: "Depósito realizado com sucesso! 🎉",
+        description: `${depositAmount} MT foram adicionados à sua conta`,
+      });
+
+      setAmount('');
+      setPhoneNumber('');
+      setPaymentMethod('');
+
+    } catch (error) {
+      toast({
         title: "Erro no depósito",
-        description: "Erro de conectividade. Tente novamente.",
+        description: "Erro ao processar o depósito. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -159,7 +98,7 @@ const Deposit = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-400 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gold-400 mx-auto mb-4"></div>
           <p className="text-gray-400">Carregando...</p>
         </div>
       </div>
@@ -167,219 +106,219 @@ const Deposit = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black py-4 sm:py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-              Depósito Seguro e Rápido
-            </span>
-          </h1>
-          <p className="text-gray-400 text-base sm:text-lg">
-            Sistema de pagamento {siteName} integrado
-          </p>
-          <div className="inline-flex items-center gap-2 mt-4 bg-green-500/20 border border-green-500/30 rounded-full px-4 sm:px-6 py-2 sm:py-3">
-            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
-            <span className="text-green-400 font-semibold text-sm sm:text-base">Saldo atual: {userData.balance.toFixed(2)} MT</span>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-blue-600/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16">
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
+                Fazer Depósito
+              </span>
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
+              Adicione fundos à sua conta Alpha Traders de forma rápida e segura
+            </p>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-          {/* Deposit Form */}
-          <div className="lg:col-span-2">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Detalhes do Depósito</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Sistema {siteName} - Processamento seguro
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Payment Methods */}
-                <div className="space-y-3">
-                  <Label className="text-gray-300">Método de Pagamento</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Button
-                      type="button"
-                      variant={selectedMethod === 'emola' ? 'default' : 'outline'}
-                      onClick={() => setSelectedMethod('emola')}
-                      className={`h-14 sm:h-16 ${selectedMethod === 'emola' 
-                        ? 'bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700' 
-                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
-                    >
-                      <div className="text-center">
-                        <Smartphone className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1" />
-                        <span className="font-semibold text-sm sm:text-base">e-Mola</span>
-                      </div>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={selectedMethod === 'mpesa' ? 'default' : 'outline'}
-                      onClick={() => setSelectedMethod('mpesa')}
-                      className={`h-14 sm:h-16 ${selectedMethod === 'mpesa' 
-                        ? 'bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700' 
-                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
-                    >
-                      <div className="text-center">
-                        <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1" />
-                        <span className="font-semibold text-sm sm:text-base">M-Pesa</span>
-                      </div>
-                    </Button>
+          {/* Current Balance */}
+          <div className="max-w-md mx-auto mb-8">
+            <Card className="bg-gradient-to-r from-gold-500/20 to-gold-600/20 border-gold-500/30 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <Wallet className="h-8 w-8 text-gold-400" />
+                  <div>
+                    <p className="text-gold-200 font-medium">Saldo Atual</p>
+                    <p className="text-3xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
                   </div>
                 </div>
-
-                {/* Amount */}
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-gray-300">Valor do Depósito (MT)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder={`Mínimo ${minDeposit} MT`}
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
-                    min={minDeposit}
-                    step="0.01"
-                  />
-                  <p className="text-sm text-gray-400">
-                    Depósito mínimo: {minDeposit} MT
-                  </p>
-                </div>
-
-                {/* Phone Number */}
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-gray-300">
-                    Número de Telefone ({selectedMethod === 'emola' ? 'e-Mola' : 'M-Pesa'})
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
-                      if (value.length <= 9) {
-                        setPhone(value);
-                      }
-                    }}
-                    placeholder="84XXXXXXX"
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
-                    maxLength={9}
-                  />
-                  <p className="text-xs text-gray-400">
-                    Formato: 84XXXXXXX, 85XXXXXXX, 86XXXXXXX ou 87XXXXXXX
-                  </p>
-                </div>
-
-                {/* Status Indicator */}
-                <Card className="bg-green-900/20 border-green-700">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                      <div>
-                        <p className="text-green-300 font-medium text-sm">Sistema {siteName} Ativo</p>
-                        <p className="text-gray-300 text-xs">
-                          Processamento seguro e confiável
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Submit Button */}
-                <Button 
-                  type="button"
-                  onClick={handleDeposit}
-                  disabled={loading || !amount || !phone || parseFloat(amount) < minDeposit || isNaN(parseFloat(amount))}
-                  className="w-full bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 font-semibold h-12 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                      Processando via {siteName}...
-                    </div>
-                  ) : (
-                    `Depositar ${amount || '0'} MT`
-                  )}
-                </Button>
               </CardContent>
             </Card>
           </div>
+        </div>
+      </div>
 
-          {/* Info Sidebar */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Deposit Form */}
+          <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white text-xl sm:text-2xl">Informações do Depósito</CardTitle>
+              <CardDescription className="text-gray-300">
+                Preencha os dados para realizar seu depósito
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="amount" className="text-white font-medium">Valor (MT)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="Valor mínimo: 100 MT"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  min="100"
+                />
+                <p className="text-sm text-gray-400">Valor mínimo: 100 MT</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white font-medium">Método de Pagamento</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue placeholder="Escolha o método de pagamento" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    {paymentMethods.map((method) => {
+                      const IconComponent = method.icon;
+                      return (
+                        <SelectItem key={method.id} value={method.id} className="text-white hover:bg-gray-700">
+                          <div className="flex items-center gap-2">
+                            <IconComponent className="h-4 w-4" />
+                            {method.name}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-white font-medium">Número de Telefone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="Ex: 84xxxxxxx"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
+                <p className="text-sm text-gray-400">Número da conta para débito</p>
+              </div>
+
+              <Button
+                onClick={handleDeposit}
+                disabled={loading || !amount || !paymentMethod || !phoneNumber}
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 font-semibold h-12 text-base sm:text-lg"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Processando...
+                  </div>
+                ) : (
+                  `Depositar ${amount ? parseFloat(amount).toFixed(2) : '0.00'} MT`
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Payment Methods Info */}
           <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CheckCircle className="h-6 w-6 text-green-400" />
+                  Métodos de Pagamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {paymentMethods.map((method) => {
+                  const IconComponent = method.icon;
+                  return (
+                    <div key={method.id} className="flex items-center gap-4 p-4 bg-gray-700/50 rounded-lg">
+                      <div className={`p-3 rounded-full bg-gradient-to-r ${method.color}`}>
+                        <IconComponent className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-white font-semibold">{method.name}</h4>
+                        <p className="text-gray-400 text-sm">Transferência instantânea</p>
+                      </div>
+                      <Badge className="ml-auto bg-green-600 text-white">Ativo</Badge>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
             {/* Security Info */}
-            <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-400 flex-shrink-0" />
-                  <h3 className="text-base sm:text-lg font-bold text-white">100% Seguro</h3>
+            <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CheckCircle className="h-6 w-6 text-blue-400" />
+                  Segurança Garantida
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <span className="text-gray-300 text-sm">Transações protegidas por SSL</span>
                 </div>
-                <p className="text-gray-300 text-sm">
-                  Sistema {siteName} integrado com verificação avançada e processamento seguro.
-                </p>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <span className="text-gray-300 text-sm">Processamento instantâneo</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <span className="text-gray-300 text-sm">Suporte 24/7 disponível</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <span className="text-gray-300 text-sm">Sem taxas ocultas</span>
+                </div>
               </CardContent>
             </Card>
 
             {/* Processing Time */}
-            <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-700">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400 flex-shrink-0" />
-                  <h3 className="text-base sm:text-lg font-bold text-white">Processamento Rápido</h3>
-                </div>
-                <p className="text-gray-300 text-sm">
-                  Sistema otimizado para aprovação rápida e creditação automática do saldo.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Minimum Deposit */}
-            <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 flex-shrink-0" />
-                  <h3 className="text-base sm:text-lg font-bold text-white">Depósito Mínimo</h3>
-                </div>
-                <p className="text-gray-300 text-sm mb-3">
-                  Valor mínimo de {minDeposit} MT para começar a investir nos nossos mineradores.
-                </p>
-                <Badge className="bg-gold-400 text-gray-900">
-                  {minDeposit} MT Mínimo
-                </Badge>
-              </CardContent>
-            </Card>
-
-            {/* System Info */}
-            <Card className="bg-gray-800 border-gray-700">
+            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Sistema {siteName}</CardTitle>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Clock className="h-6 w-6 text-gold-400" />
+                  Tempo de Processamento
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
-                  <div>
-                    <p className="text-white font-medium">Sistema Seguro</p>
-                    <p className="text-gray-400 text-sm">Integração oficial e segura</p>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">M-Pesa</span>
+                    <Badge className="bg-green-600 text-white">Instantâneo</Badge>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
-                  <div>
-                    <p className="text-white font-medium">Verificação Automática</p>
-                    <p className="text-gray-400 text-sm">Sistema de validação inteligente</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">e-Mola</span>
+                    <Badge className="bg-green-600 text-white">Instantâneo</Badge>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
-                  <div>
-                    <p className="text-white font-medium">Comissão Automática</p>
-                    <p className="text-gray-400 text-sm">30% para quem te indicou</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Ponto 24</span>
+                    <Badge className="bg-blue-600 text-white">1-5 min</Badge>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Important Notice */}
+        <div className="mt-8">
+          <Card className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border-yellow-700/50 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="text-yellow-400 font-semibold mb-2">Informações Importantes</h3>
+                  <ul className="text-gray-300 space-y-1 text-sm">
+                    <li>• Valor mínimo de depósito: 100 MT</li>
+                    <li>• Depósitos são processados automaticamente</li>
+                    <li>• Guarde o comprovante da transação</li>
+                    <li>• Em caso de problemas, contacte o suporte</li>
+                    <li>• Verifique se o número inserido está correto</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
