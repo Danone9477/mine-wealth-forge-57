@@ -31,10 +31,10 @@ const Affiliates = () => {
   const affiliateCode = userData?.affiliateCode || `REF${userData?.username?.toUpperCase()}${Date.now().toString().slice(-4)}`;
   const affiliateLink = `${window.location.origin}/register?ref=${affiliateCode}`;
   
-  // Simular dados de afiliados (em produção viria do Firebase)
+  // Estatísticas de afiliados melhoradas
   const affiliateStats = {
-    totalInvited: userData?.affiliateStats?.totalInvited || 0,
-    activeReferrals: userData?.affiliateStats?.activeReferrals || 0,
+    totalInvited: userData?.affiliateStats?.totalInvited || 0, // Pessoas que se registraram
+    activeReferrals: userData?.affiliateStats?.activeReferrals || 0, // Pessoas que fizeram depósitos
     totalCommissions: userData?.affiliateStats?.totalCommissions || 0,
     affiliateBalance: userData?.affiliateBalance || 0,
     monthlyCommissions: userData?.affiliateStats?.monthlyCommissions || 0,
@@ -44,7 +44,7 @@ const Affiliates = () => {
   const minWithdraw = 300;
 
   useEffect(() => {
-    // Atualizar código de afiliado se não existir
+    // Gerar código de afiliado se não existir
     if (!userData?.affiliateCode) {
       updateUserData({
         affiliateCode,
@@ -108,10 +108,10 @@ const Affiliates = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "API-Key": "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e"
+          "API-Key": "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4632267e"
         },
         body: JSON.stringify({
-          wallet_id: "9d2cd54d-720b-490f-b0a9-5c9eace02ff4",
+          wallet_id: "4c8e3fab-70a2-4b19-a23e-7b4472565c14",
           amount: amount,
           phone_number: withdrawPhone
         })
@@ -198,6 +198,7 @@ const Affiliates = () => {
                 <div>
                   <p className="text-blue-300 text-sm font-medium">Pessoas Convidadas</p>
                   <p className="text-3xl font-bold text-white">{affiliateStats.totalInvited}</p>
+                  <p className="text-blue-400 text-xs">Registros pelo seu link</p>
                 </div>
                 <UserPlus className="h-8 w-8 text-blue-400" />
               </div>
@@ -210,6 +211,7 @@ const Affiliates = () => {
                 <div>
                   <p className="text-green-300 text-sm font-medium">Referidos Ativos</p>
                   <p className="text-3xl font-bold text-white">{affiliateStats.activeReferrals}</p>
+                  <p className="text-green-400 text-xs">Que fizeram depósitos</p>
                 </div>
                 <Users className="h-8 w-8 text-green-400" />
               </div>
@@ -221,7 +223,8 @@ const Affiliates = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gold-300 text-sm font-medium">Saldo de Afiliado</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.affiliateBalance} MT</p>
+                  <p className="text-3xl font-bold text-white">{affiliateStats.affiliateBalance.toFixed(2)} MT</p>
+                  <p className="text-gold-400 text-xs">Disponível para saque</p>
                 </div>
                 <Wallet className="h-8 w-8 text-gold-400" />
               </div>
@@ -233,7 +236,8 @@ const Affiliates = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-300 text-sm font-medium">Total de Comissões</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.totalCommissions} MT</p>
+                  <p className="text-3xl font-bold text-white">{affiliateStats.totalCommissions.toFixed(2)} MT</p>
+                  <p className="text-purple-400 text-xs">Ganhos acumulados</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-purple-400" />
               </div>
@@ -300,8 +304,9 @@ const Affiliates = () => {
                       <h4 className="text-gold-400 font-semibold">Como Funciona:</h4>
                       <ul className="text-gray-300 text-sm space-y-1 mt-2">
                         <li>• Compartilhe seu link com amigos e conhecidos</li>
-                        <li>• Quando alguém se registrar e fizer um depósito</li>
-                        <li>• Você ganha 30% do valor depositado como comissão</li>
+                        <li>• Quando alguém se registrar pelo seu link: +1 pessoa convidada</li>
+                        <li>• Quando essa pessoa fizer um depósito: +1 referido ativo</li>
+                        <li>• Você ganha 30% do valor de cada depósito como comissão</li>
                         <li>• Saque mínimo de 300 MT das suas comissões</li>
                       </ul>
                     </div>
@@ -325,11 +330,11 @@ const Affiliates = () => {
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                         <div>
                           <p className="text-white font-medium">{referral.username}</p>
-                          <p className="text-gray-400 text-sm">Registrado em {referral.date}</p>
+                          <p className="text-gray-400 text-sm">Depósito em {referral.date}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-green-400 font-bold">+{referral.commission} MT</p>
-                          <p className="text-gray-400 text-sm">Comissão</p>
+                          <p className="text-green-400 font-bold">+{referral.commission.toFixed(2)} MT</p>
+                          <p className="text-gray-400 text-sm">Comissão 30%</p>
                         </div>
                       </div>
                     ))}
@@ -337,7 +342,7 @@ const Affiliates = () => {
                 ) : (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">Nenhum referido ainda</p>
+                    <p className="text-gray-400">Nenhuma comissão ainda</p>
                     <p className="text-gray-500 text-sm">Comece a compartilhar seu link!</p>
                   </div>
                 )}
@@ -397,7 +402,15 @@ const Affiliates = () => {
 
                 <div className="bg-blue-400/10 border border-blue-400/20 rounded-lg p-3">
                   <p className="text-blue-300 text-sm">
-                    💰 <span className="font-semibold">Saldo disponível:</span> {affiliateStats.affiliateBalance} MT
+                    💰 <span className="font-semibold">Saldo disponível:</span> {affiliateStats.affiliateBalance.toFixed(2)} MT
+                  </p>
+                </div>
+
+                <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-3">
+                  <p className="text-green-300 text-sm text-center">
+                    <span className="font-semibold">Diferença importante:</span><br/>
+                    <span className="text-xs">Saldo da Plataforma: {userData.balance.toFixed(2)} MT (para mineração)</span><br/>
+                    <span className="text-xs">Saldo de Afiliado: {affiliateStats.affiliateBalance.toFixed(2)} MT (comissões)</span>
                   </p>
                 </div>
               </CardContent>
@@ -413,11 +426,16 @@ const Affiliates = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-300">Comissões este mês:</span>
-                    <span className="text-green-400 font-bold">{affiliateStats.monthlyCommissions} MT</span>
+                    <span className="text-green-400 font-bold">{affiliateStats.monthlyCommissions.toFixed(2)} MT</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Novos referidos:</span>
-                    <span className="text-white font-bold">{affiliateStats.totalInvited}</span>
+                    <span className="text-gray-300">Taxa de conversão:</span>
+                    <span className="text-white font-bold">
+                      {affiliateStats.totalInvited > 0 
+                        ? `${((affiliateStats.activeReferrals / affiliateStats.totalInvited) * 100).toFixed(1)}%`
+                        : '0%'
+                      }
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -433,15 +451,15 @@ const Affiliates = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <ArrowUpRight className="h-4 w-4 text-purple-400" />
-                    <span className="text-gray-300">10+ referidos: +5% bônus</span>
+                    <span className="text-gray-300">10+ referidos ativos: +5% bônus</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <ArrowUpRight className="h-4 w-4 text-purple-400" />
-                    <span className="text-gray-300">25+ referidos: +10% bônus</span>
+                    <span className="text-gray-300">25+ referidos ativos: +10% bônus</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <ArrowUpRight className="h-4 w-4 text-purple-400" />
-                    <span className="text-gray-300">50+ referidos: +15% bônus</span>
+                    <span className="text-gray-300">50+ referidos ativos: +15% bônus</span>
                   </div>
                 </div>
               </CardContent>

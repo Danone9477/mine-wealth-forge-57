@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreditCard, Smartphone, Shield, Clock, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const Deposit = () => {
   const { userData, updateUserData } = useAuth();
@@ -19,8 +21,64 @@ const Deposit = () => {
   const minDeposit = 100;
 
   // Credenciais da Gibra Pay
-  const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e";
-  const WALLET_ID = "9d2cd54d-720b-490f-b0a9-5c9eace02ff4";
+  const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4632267e";
+  const WALLET_ID = "4c8e3fab-70a2-4b19-a23e-7b4472565c14";
+
+  const processAffiliateCommission = async (depositAmount: number, userUID: string) => {
+    try {
+      if (!userData?.referredBy) return;
+
+      const commission = depositAmount * 0.30; // 30% de comissão
+      
+      // Buscar o afiliado que fez a referência
+      const affiliateQuery = query(
+        collection(db, 'users'),
+        where('affiliateCode', '==', userData.referredBy)
+      );
+      
+      const affiliateSnapshot = await getDocs(affiliateQuery);
+      
+      if (!affiliateSnapshot.empty) {
+        const affiliateDoc = affiliateSnapshot.docs[0];
+        const affiliateData = affiliateDoc.data();
+        
+        // Atualizar dados do afiliado
+        const newAffiliateBalance = (affiliateData.affiliateBalance || 0) + commission;
+        const newTotalCommissions = (affiliateData.affiliateStats?.totalCommissions || 0) + commission;
+        const newMonthlyCommissions = (affiliateData.affiliateStats?.monthlyCommissions || 0) + commission;
+        
+        // Adicionar à lista de referidos
+        const newReferral = {
+          username: userData.username,
+          date: new Date().toLocaleDateString('pt-BR'),
+          commission: commission
+        };
+        
+        const updatedReferralsList = [
+          ...(affiliateData.affiliateStats?.referralsList || []),
+          newReferral
+        ];
+        
+        // Incrementar contadores
+        const updatedStats = {
+          ...affiliateData.affiliateStats,
+          totalCommissions: newTotalCommissions,
+          monthlyCommissions: newMonthlyCommissions,
+          activeReferrals: (affiliateData.affiliateStats?.activeReferrals || 0) + 1,
+          referralsList: updatedReferralsList
+        };
+        
+        await updateDoc(doc(db, 'users', affiliateDoc.id), {
+          affiliateBalance: newAffiliateBalance,
+          affiliateStats: updatedStats
+        });
+        
+        console.log(`Comissão de ${commission} MT creditada ao afiliado ${userData.referredBy}`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar comissão do afiliado:', error);
+    }
+  };
 
   const handleDeposit = async () => {
     if (!userData) {
@@ -52,9 +110,28 @@ const Deposit = () => {
       return;
     }
 
+    // Validar prefixo do número
+    const validPrefixes = ['84', '85', '86', '87'];
+    const phonePrefix = phone.substring(0, 2);
+    
+    if (!validPrefixes.includes(phonePrefix)) {
+      toast({
+        title: "Número inválido",
+        description: "O número deve começar com 84, 85, 86 ou 87",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
+      console.log('Iniciando depósito com Gibra Pay:', {
+        amount: depositAmount,
+        phone: phone,
+        wallet_id: WALLET_ID
+      });
+
       const response = await fetch("https://gibrapay.online/v1/transfer", {
         method: "POST",
         headers: {
@@ -68,11 +145,15 @@ const Deposit = () => {
         })
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error(`Erro HTTP ${response.status}`);
+        throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Gibra Pay response:', result);
 
       const transaction = {
         id: result.data?.id || Date.now().toString(),
@@ -89,15 +170,8 @@ const Deposit = () => {
       };
 
       if (result.status === 'success') {
-        // Processar comissão de afiliado se o usuário foi referido
-        let affiliateCommission = 0;
-        if (userData.referredBy) {
-          affiliateCommission = depositAmount * 0.30; // 30% de comissão
-          
-          // Aqui você atualizaria o saldo do afiliado que fez a referência
-          // Em produção, isso seria feito no backend Firebase
-          console.log(`Comissão de ${affiliateCommission} MT para afiliado ${userData.referredBy}`);
-        }
+        // Processar comissão de afiliado se aplicável
+        await processAffiliateCommission(depositAmount, userData.uid);
 
         const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
@@ -119,14 +193,14 @@ const Deposit = () => {
         });
 
         toast({
-          title: "Erro no depósito",
-          description: result.message || "Falha na transferência. Verifique os dados e tente novamente.",
+          title: "Falha no depósito",
+          description: result.message || "A transferência falhou. Verifique os dados e tente novamente.",
           variant: "destructive",
         });
       }
 
     } catch (error) {
-      console.error('Erro no depósito:', error);
+      console.error('Erro completo no depósito:', error);
       
       const failedTransaction = {
         id: Date.now().toString(),
@@ -137,7 +211,7 @@ const Deposit = () => {
         status: 'failed' as const,
         date: new Date().toISOString(),
         description: `Falha no depósito via ${selectedMethod.toUpperCase()}`,
-        error: error instanceof Error ? error.message : 'Erro de conexão'
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
       };
 
       const updatedTransactions = [...(userData.transactions || []), failedTransaction];
@@ -145,9 +219,23 @@ const Deposit = () => {
         transactions: updatedTransactions
       });
 
+      let errorMessage = "Erro de conexão com o serviço de pagamento";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('HTTP 400')) {
+          errorMessage = "Dados inválidos. Verifique o valor e número de telefone";
+        } else if (error.message.includes('HTTP 401')) {
+          errorMessage = "Erro de autenticação com o serviço de pagamento";
+        } else if (error.message.includes('HTTP 500')) {
+          errorMessage = "Erro interno do serviço de pagamento";
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Erro de conectividade. Verifique sua internet";
+        }
+      }
+
       toast({
         title: "Erro no depósito",
-        description: "Erro de conexão com o serviço de pagamento. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -181,7 +269,7 @@ const Deposit = () => {
           </p>
           <div className="inline-flex items-center gap-2 mt-4 bg-green-500/20 border border-green-500/30 rounded-full px-4 sm:px-6 py-2 sm:py-3">
             <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
-            <span className="text-green-400 font-semibold text-sm sm:text-base">Saldo atual: {userData.balance} MT</span>
+            <span className="text-green-400 font-semibold text-sm sm:text-base">Saldo atual: {userData.balance.toFixed(2)} MT</span>
           </div>
         </div>
 
@@ -192,7 +280,7 @@ const Deposit = () => {
               <CardHeader>
                 <CardTitle className="text-white">Detalhes do Depósito</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Preencha os dados para processar seu depósito
+                  Preencha os dados para processar seu depósito via Gibra Pay
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -281,7 +369,7 @@ const Deposit = () => {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                      Processando Depósito...
+                      Processando via Gibra Pay...
                     </div>
                   ) : (
                     `Depositar ${amount || '0'} MT`
@@ -314,7 +402,7 @@ const Deposit = () => {
                   <h3 className="text-base sm:text-lg font-bold text-white">Processamento Rápido</h3>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Depósitos são processados instantaneamente e o saldo é creditado imediatamente na sua conta.
+                  Depósitos são processados instantaneamente via Gibra Pay e o saldo é creditado imediatamente.
                 </p>
               </CardContent>
             </Card>
@@ -335,31 +423,31 @@ const Deposit = () => {
               </CardContent>
             </Card>
 
-            {/* Steps */}
+            {/* API Info */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Como Funciona</CardTitle>
+                <CardTitle className="text-white text-lg">Powered by Gibra Pay</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
-                    <p className="text-white font-medium">Escolha o método</p>
-                    <p className="text-gray-400 text-sm">e-Mola ou M-Pesa</p>
+                    <p className="text-white font-medium">API Segura</p>
+                    <p className="text-gray-400 text-sm">Integração oficial Gibra Pay</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
-                    <p className="text-white font-medium">Insira o valor</p>
-                    <p className="text-gray-400 text-sm">Mínimo 100 MT</p>
+                    <p className="text-white font-medium">Suporte 24/7</p>
+                    <p className="text-gray-400 text-sm">Assistência completa</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+                  <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
-                    <p className="text-white font-medium">Confirme</p>
-                    <p className="text-gray-400 text-sm">Saldo creditado instantaneamente</p>
+                    <p className="text-white font-medium">Comissão de Afiliado</p>
+                    <p className="text-gray-400 text-sm">30% para quem te convidou</p>
                   </div>
                 </div>
               </CardContent>

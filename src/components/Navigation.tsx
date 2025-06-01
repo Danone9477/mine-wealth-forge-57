@@ -1,217 +1,297 @@
 
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, User, LogOut, Menu, X, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Home, 
+  LogIn, 
+  UserPlus, 
+  LayoutDashboard, 
+  Pickaxe, 
+  CreditCard, 
+  Banknote, 
+  Users, 
+  History,
+  LogOut,
+  Menu,
+  X,
+  Settings
+} from 'lucide-react';
 
 const Navigation = () => {
   const { user, userData, logout } = useAuth();
   const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [adminClickCount, setAdminClickCount] = useState(0);
+  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
+  const [adminKey, setAdminKey] = useState('');
 
-  const isActive = (path: string) => location.pathname === path;
+  // Reset admin click count after 5 seconds of inactivity
+  useEffect(() => {
+    if (adminClickCount > 0) {
+      const timer = setTimeout(() => {
+        setAdminClickCount(0);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [adminClickCount]);
+
+  const handleAffiliatesClick = () => {
+    setAdminClickCount(prev => prev + 1);
+    
+    // If clicked rapidly for 20+ times (approximating 20 seconds of rapid clicking)
+    if (adminClickCount >= 20) {
+      setShowAdminPrompt(true);
+      setAdminClickCount(0);
+    } else {
+      navigate('/affiliates');
+    }
+  };
+
+  const handleAdminAccess = () => {
+    if (adminKey === 'ADMINAPPKEY') {
+      setShowAdminPrompt(false);
+      setAdminKey('');
+      navigate('/admin');
+    } else {
+      alert('Chave incorreta!');
+      setAdminKey('');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
-    setIsMobileMenuOpen(false);
+    setIsMenuOpen(false);
   };
 
-  return (
-    <nav className="bg-gradient-to-r from-gray-900 to-black border-b border-gold-500/20 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <div className="bg-gradient-gold p-2 rounded-lg group-hover:animate-glow">
-              <Coins className="h-6 w-6 text-gray-900" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-              MineWealth Forge
-            </span>
-          </Link>
+  const isActive = (path: string) => location.pathname === path;
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            {user ? (
-              <>
-                <Link 
-                  to="/dashboard" 
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/dashboard') 
-                      ? 'text-gold-400 bg-gold-400/10' 
-                      : 'text-gray-300 hover:text-gold-400'
+  const publicLinks = [
+    { to: '/', icon: Home, label: 'Início' },
+  ];
+
+  const authLinks = [
+    { to: '/login', icon: LogIn, label: 'Login' },
+    { to: '/register', icon: UserPlus, label: 'Registrar' },
+  ];
+
+  const userLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/miners', icon: Pickaxe, label: 'Mineradores' },
+    { to: '/deposit', icon: CreditCard, label: 'Depósito' },
+    { to: '/withdraw', icon: Banknote, label: 'Saque' },
+    { to: '/affiliates', icon: Users, label: 'Afiliados', onClick: handleAffiliatesClick },
+    { to: '/history', icon: History, label: 'Histórico' },
+  ];
+
+  return (
+    <>
+      <nav className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <Link to="/" className="flex items-center space-x-2">
+                <Pickaxe className="h-8 w-8 text-gold-400" />
+                <span className="text-xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
+                  MineWealth Forge
+                </span>
+              </Link>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              {publicLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive(link.to)
+                      ? 'bg-gold-400 text-gray-900'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }`}
                 >
-                  Dashboard
+                  <link.icon className="h-4 w-4" />
+                  <span>{link.label}</span>
                 </Link>
-                <Link 
-                  to="/miners" 
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/miners') 
-                      ? 'text-gold-400 bg-gold-400/10' 
-                      : 'text-gray-300 hover:text-gold-400'
-                  }`}
-                >
-                  Mineradores
-                </Link>
-                <Link 
-                  to="/deposit" 
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/deposit') 
-                      ? 'text-gold-400 bg-gold-400/10' 
-                      : 'text-gray-300 hover:text-gold-400'
-                  }`}
-                >
-                  Depósito
-                </Link>
-                <Link 
-                  to="/withdraw" 
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/withdraw') 
-                      ? 'text-gold-400 bg-gold-400/10' 
-                      : 'text-gray-300 hover:text-gold-400'
-                  }`}
-                >
-                  Levantamento
-                </Link>
-                <Link 
-                  to="/affiliates" 
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/affiliates') 
-                      ? 'text-gold-400 bg-gold-400/10' 
-                      : 'text-gray-300 hover:text-gold-400'
-                  }`}
-                >
-                  <Users className="h-4 w-4 inline mr-1" />
-                  Afiliados
-                </Link>
-                
-                <div className="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-700">
-                  <div className="text-sm">
-                    <span className="text-gray-400">Saldo: </span>
-                    <span className="text-gold-400 font-bold">{userData?.balance || 0} MT</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-300">{userData?.username}</span>
-                  </div>
+              ))}
+
+              {user ? (
+                <>
+                  {userLinks.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      onClick={link.onClick}
+                      className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        isActive(link.to)
+                          ? 'bg-gold-400 text-gray-900'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      }`}
+                    >
+                      <link.icon className="h-4 w-4" />
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                  
+                  {userData && (
+                    <div className="flex items-center space-x-2 px-3 py-2 bg-green-500/20 rounded-md">
+                      <span className="text-green-400 text-sm font-medium">
+                        {userData.balance} MT
+                      </span>
+                    </div>
+                  )}
+                  
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
                     size="sm"
-                    className="text-gray-400 hover:text-red-400"
+                    className="text-gray-300 hover:bg-gray-800 hover:text-white"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Sair
                   </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link to="/login">
-                  <Button variant="ghost" className="text-gray-300 hover:text-gold-400">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/register">
-                  <Button className="bg-gradient-gold text-gray-900 hover:bg-gold-500">
-                    Registrar
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
+                </>
+              ) : (
+                authLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive(link.to)
+                        ? 'bg-gold-400 text-gray-900'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))
+              )}
+            </div>
 
-          {/* Mobile menu button */}
-          <button
-            className="md:hidden text-gray-300 hover:text-gold-400"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center">
+              <Button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                variant="ghost"
+                size="sm"
+                className="text-gray-300"
+              >
+                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-700">
-            {user ? (
-              <div className="space-y-2">
-                <Link 
-                  to="/dashboard" 
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800">
+              {publicLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
+                    isActive(link.to)
+                      ? 'bg-gold-400 text-gray-900'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
                 >
-                  Dashboard
+                  <link.icon className="h-5 w-5" />
+                  <span>{link.label}</span>
                 </Link>
-                <Link 
-                  to="/miners" 
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Mineradores
-                </Link>
-                <Link 
-                  to="/deposit" 
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Depósito
-                </Link>
-                <Link 
-                  to="/withdraw" 
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Levantamento
-                </Link>
-                <Link 
-                  to="/affiliates" 
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Users className="h-4 w-4 inline mr-1" />
-                  Afiliados
-                </Link>
-                <div className="px-3 py-2 border-t border-gray-700 mt-4">
-                  <div className="text-sm text-gray-400 mb-2">
-                    Saldo: <span className="text-gold-400 font-bold">{userData?.balance || 0} MT</span>
-                  </div>
-                  <div className="text-sm text-gray-400 mb-4">
-                    Usuário: <span className="text-gray-300">{userData?.username}</span>
-                  </div>
+              ))}
+
+              {user ? (
+                <>
+                  {userLinks.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      onClick={() => {
+                        if (link.onClick) link.onClick();
+                        setIsMenuOpen(false);
+                      }}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
+                        isActive(link.to)
+                          ? 'bg-gold-400 text-gray-900'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <link.icon className="h-5 w-5" />
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                  
+                  {userData && (
+                    <div className="flex items-center space-x-2 px-3 py-2 bg-green-500/20 rounded-md mx-3">
+                      <span className="text-green-400 text-sm font-medium">
+                        Saldo: {userData.balance} MT
+                      </span>
+                    </div>
+                  )}
+                  
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
-                    size="sm"
-                    className="text-red-400 hover:text-red-300"
+                    className="w-full justify-start text-gray-300 hover:bg-gray-700 hover:text-white"
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
+                    <LogOut className="h-5 w-5 mr-2" />
                     Sair
                   </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Link 
-                  to="/login"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link 
-                  to="/register"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-gold-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Registrar
-                </Link>
-              </div>
-            )}
+                </>
+              ) : (
+                authLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
+                      isActive(link.to)
+                        ? 'bg-gold-400 text-gray-900'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <link.icon className="h-5 w-5" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))
+              )}
+            </div>
           </div>
         )}
-      </div>
-    </nav>
+      </nav>
+
+      {/* Admin Key Prompt Modal */}
+      {showAdminPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Acesso Administrativo</h3>
+            <p className="text-gray-300 mb-4">Digite a chave de administrador:</p>
+            <input
+              type="password"
+              value={adminKey}
+              onChange={(e) => setAdminKey(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white mb-4"
+              placeholder="Digite a chave..."
+              onKeyPress={(e) => e.key === 'Enter' && handleAdminAccess()}
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleAdminAccess} className="bg-gold-400 text-gray-900 hover:bg-gold-500">
+                Acessar
+              </Button>
+              <Button onClick={() => setShowAdminPrompt(false)} variant="outline" className="border-gray-600 text-gray-300">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
