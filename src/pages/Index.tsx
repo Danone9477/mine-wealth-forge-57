@@ -1,8 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, TrendingUp, Shield, Zap, Users, Award, Clock, DollarSign, Pickaxe, Coins, Star, Crown, Diamond, Gem } from "lucide-react";
+import CryptoSection from "@/components/CryptoSection";
 
 const Index = () => {
   const minerTypes = [
@@ -120,6 +120,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Crypto Section */}
+      <CryptoSection />
 
       {/* Miners Preview with new design */}
       <section className="py-12 sm:py-16 lg:py-20 px-4">
