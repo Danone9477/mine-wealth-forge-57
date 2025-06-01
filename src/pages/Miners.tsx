@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
-import { Pickaxe, Zap, Clock, Shield, TrendingUp, Star, Crown, Diamond, Gem, Award } from 'lucide-react';
+import { Pickaxe, Coins, Clock, TrendingUp, Zap, Shield, Star, Crown, Diamond, Gem } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { addMinerToUser, unlockWithdrawalsForUser } from '@/services/minerService';
+import { addMinerToUser } from '@/services/minerService';
 
 const Miners = () => {
   const { userData, updateUserData } = useAuth();
@@ -179,46 +180,42 @@ const Miners = () => {
     try {
       const newMiner = await addMinerToUser(userData.uid, miner);
       
-      // Criar transação de compra
-      const purchaseTransaction = {
+      const updatedMiners = [...(userData.miners || []), newMiner];
+      const newBalance = userData.balance - miner.price;
+      
+      const transaction = {
         id: Date.now().toString(),
         type: 'purchase' as const,
-        amount: -miner.price,
+        amount: miner.price,
         status: 'success' as const,
         date: new Date().toISOString(),
-        description: `Compra do minerador ${miner.name}`,
-        minerName: miner.name
+        description: `Compra de ${miner.name}`,
+        minerDetails: {
+          name: miner.name,
+          dailyReturn: miner.dailyReturn,
+          duration: miner.duration
+        }
       };
 
-      const wasWithdrawalBlocked = !userData.canWithdraw && (userData.miners?.length || 0) === 0;
+      const updatedTransactions = [...(userData.transactions || []), transaction];
 
-      // Atualizar dados do usuário
       await updateUserData({
-        balance: userData.balance - miner.price,
-        miners: [...(userData.miners || []), newMiner],
-        transactions: [...(userData.transactions || []), purchaseTransaction],
-        canWithdraw: true // Liberar saques automaticamente
+        balance: newBalance,
+        miners: updatedMiners,
+        transactions: updatedTransactions,
+        canWithdraw: true
       });
 
-      // Se era a primeira compra, liberar saques no Firebase também
-      if (wasWithdrawalBlocked) {
-        try {
-          await unlockWithdrawalsForUser(userData.uid);
-        } catch (error) {
-          console.log('Aviso: Não foi possível atualizar saques no Firebase:', error);
-        }
-      }
-
       toast({
-        title: "Minerador comprado com sucesso! 🎉",
-        description: `${miner.name} foi adicionado à sua conta. ${wasWithdrawalBlocked ? 'Saques foram liberados!' : ''}`,
+        title: "🎉 Minerador comprado com sucesso!",
+        description: `${miner.name} está ativo e começará a gerar ${miner.dailyReturn} MT por dia. Saques liberados!`,
       });
 
     } catch (error) {
-      console.error('Erro na compra:', error);
+      console.error('Erro ao comprar minerador:', error);
       toast({
         title: "Erro na compra",
-        description: "Tente novamente ou contacte o suporte",
+        description: "Erro ao processar a compra do minerador",
         variant: "destructive",
       });
     } finally {

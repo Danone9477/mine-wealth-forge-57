@@ -168,41 +168,24 @@ const Dashboard = () => {
     );
   }
 
-  // Calcular mineradores ativos (que não expiraram)
-  const activeMinerCount = userData.miners?.filter(miner => {
-    if (!miner.active) return false;
-    const expiryDate = new Date(miner.expiryDate);
-    return expiryDate > new Date();
-  }).length || 0;
-
-  // Calcular ganhos diários automáticos dos mineradores ativos
   const activeMinerEarnings = userData.miners?.reduce((acc, miner) => {
     if (!miner.active) return acc;
     const expiryDate = new Date(miner.expiryDate);
     return expiryDate > new Date() ? acc + (miner.dailyReturn || 0) : acc;
   }, 0) || 0;
 
-  // Calcular ganhos do dia (tarefas + mineradores coletados hoje)
-  const today = new Date().toDateString();
+  const activeMinerCount = userData.miners?.filter(miner => {
+    if (!miner.active) return false;
+    const expiryDate = new Date(miner.expiryDate);
+    return expiryDate > new Date();
+  }).length || 0;
+
+  // Calculate today's earnings from completed tasks and collections
   const todayEarnings = userData.transactions?.filter(t => {
     const transactionDate = new Date(t.date).toDateString();
+    const today = new Date().toDateString();
     return transactionDate === today && (t.type === 'task' || t.type === 'mining');
   }).reduce((sum, t) => sum + t.amount, 0) || 0;
-
-  // Calcular ganhos do mês atual
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyEarnings = userData.transactions?.filter(t => {
-    const transactionDate = new Date(t.date);
-    return transactionDate.getMonth() === currentMonth && 
-           transactionDate.getFullYear() === currentYear &&
-           (t.type === 'task' || t.type === 'mining');
-  }).reduce((sum, t) => sum + t.amount, 0) || 0;
-
-  // Total de lucros (todas as tarefas e mineradores desde o início)
-  const totalProfits = userData.transactions?.filter(t => 
-    t.type === 'task' || t.type === 'mining'
-  ).reduce((sum, t) => sum + t.amount, 0) || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
@@ -215,7 +198,7 @@ const Dashboard = () => {
               Bem-vindo, <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">{userData.username}</span>! 👋
             </h1>
             <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Acompanhe seus investimentos, mineradores ativos e ganhos em tempo real no Alpha Traders.
+              Acompanhe seus investimentos, mineradores ativos e ganhos em tempo real. Sua jornada para a liberdade financeira começa aqui.
             </p>
           </div>
         </div>
@@ -224,6 +207,19 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Main Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Saldo Atual */}
+          <Card className="bg-gradient-to-br from-gold-500/20 to-gold-600/20 border-gold-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gold-200 font-medium mb-1">Saldo Atual</p>
+                  <p className="text-3xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
+                </div>
+                <Coins className="h-12 w-12 text-gold-400" />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Ganhos do Dia */}
           <Card className="bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
             <CardContent className="p-6">
@@ -231,7 +227,6 @@ const Dashboard = () => {
                 <div>
                   <p className="text-green-200 font-medium mb-1">Ganhos do Dia</p>
                   <p className="text-3xl font-bold text-white">{todayEarnings.toFixed(2)} MT</p>
-                  <p className="text-xs text-green-300 mt-1">Tarefas + Mineradores</p>
                 </div>
                 <TrendingUp className="h-12 w-12 text-green-400" />
               </div>
@@ -245,7 +240,6 @@ const Dashboard = () => {
                 <div>
                   <p className="text-blue-200 font-medium mb-1">Mineradores Ativos</p>
                   <p className="text-3xl font-bold text-white">{activeMinerCount}</p>
-                  <p className="text-xs text-blue-300 mt-1">{activeMinerEarnings.toFixed(0)} MT/dia automático</p>
                 </div>
                 <Pickaxe className="h-12 w-12 text-blue-400" />
               </div>
@@ -258,24 +252,9 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-200 font-medium mb-1">Total de Lucros</p>
-                  <p className="text-3xl font-bold text-white">{totalProfits.toFixed(2)} MT</p>
-                  <p className="text-xs text-purple-300 mt-1">Desde o início</p>
+                  <p className="text-3xl font-bold text-white">{userData.totalEarnings.toFixed(2)} MT</p>
                 </div>
                 <Trophy className="h-12 w-12 text-purple-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Ganhos Mensais */}
-          <Card className="bg-gradient-to-br from-gold-500/20 to-gold-600/20 border-gold-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gold-200 font-medium mb-1">Ganhos do Mês</p>
-                  <p className="text-3xl font-bold text-white">{monthlyEarnings.toFixed(2)} MT</p>
-                  <p className="text-xs text-gold-300 mt-1">Mês atual</p>
-                </div>
-                <Coins className="h-12 w-12 text-gold-400" />
               </div>
             </CardContent>
           </Card>
@@ -346,9 +325,9 @@ const Dashboard = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-400">Meta Mensal</span>
-                    <span className="text-gray-400">{Math.min(100, (totalProfits / 10000 * 100)).toFixed(1)}%</span>
+                    <span className="text-gray-400">{Math.min(100, (userData.totalEarnings / 10000 * 100)).toFixed(1)}%</span>
                   </div>
-                  <Progress value={Math.min(100, (totalProfits / 10000 * 100))} className="h-3" />
+                  <Progress value={Math.min(100, (userData.totalEarnings / 10000 * 100))} className="h-3" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 text-center">
@@ -357,7 +336,7 @@ const Dashboard = () => {
                     <p className="text-xs text-gray-400">Transações</p>
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-blue-400">{(totalProfits / Math.max(1, userData.balance) * 100).toFixed(1)}%</p>
+                    <p className="text-xl font-bold text-blue-400">{(userData.totalEarnings / Math.max(1, userData.balance) * 100).toFixed(1)}%</p>
                     <p className="text-xs text-gray-400">ROI Total</p>
                   </div>
                   <div>
@@ -433,32 +412,42 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Account Balance */}
+          {/* Active Miners Summary */}
           <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-600/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Coins className="h-6 w-6 text-blue-400" />
-                Saldo da Conta
+                <Pickaxe className="h-6 w-6 text-blue-400" />
+                Resumo dos Mineradores
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
-                  <p className="text-blue-300 text-sm">Disponível para saque</p>
+              {activeMinerCount > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ativos</span>
+                    <span className="text-white font-bold">{activeMinerCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ganho Diário</span>
+                    <span className="text-green-400 font-bold">{activeMinerEarnings} MT</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ganho Mensal</span>
+                    <span className="text-gold-400 font-bold">{(activeMinerEarnings * 30).toFixed(0)} MT</span>
+                  </div>
+                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
+                    <a href="/miners">Ver Detalhes</a>
+                  </Button>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                  {userData.canWithdraw || activeMinerCount > 0 ? (
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500">
-                      Saques Liberados
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-red-500/20 text-red-400 border-red-500">
-                      Saques Bloqueados
-                    </Badge>
-                  )}
+              ) : (
+                <div className="text-center py-4">
+                  <Pickaxe className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">Nenhum minerador ativo</p>
+                  <Button asChild className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700">
+                    <a href="/miners">Comprar Minerador</a>
+                  </Button>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
