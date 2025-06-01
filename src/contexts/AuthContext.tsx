@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
@@ -101,9 +100,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const urlParams = new URLSearchParams(window.location.search);
       const referralCode = urlParams.get('ref');
 
+      console.log('Processando registro com código de afiliado:', referralCode);
+
       // Se há código de afiliado, incrementar contador de pessoas convidadas
       if (referralCode) {
         try {
+          console.log('Buscando afiliado com código:', referralCode);
+          
           const affiliateQuery = query(
             collection(db, 'users'),
             where('affiliateCode', '==', referralCode)
@@ -114,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!affiliateSnapshot.empty) {
             const affiliateDoc = affiliateSnapshot.docs[0];
             const affiliateData = affiliateDoc.data();
+            
+            console.log('Afiliado encontrado:', affiliateData.username);
             
             const currentStats = affiliateData.affiliateStats || {};
             const updatedStats = {
@@ -126,7 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               affiliateStats: updatedStats
             });
             
-            console.log(`Usuário registrado via afiliado ${referralCode}`);
+            console.log(`Usuário ${username} registrado via afiliado ${referralCode}. Total convidados agora: ${updatedStats.totalInvited}`);
+          } else {
+            console.log('Afiliado não encontrado para código:', referralCode);
           }
         } catch (error) {
           console.error('Erro ao processar código de afiliado:', error);
@@ -162,9 +169,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       await setDoc(doc(db, 'users', result.user.uid), newUserData);
       setUserData(newUserData);
+      
+      console.log('Usuário criado com sucesso:', newUserData);
+      
       toast({
         title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao Mine Wealth!",
+        description: referralCode ? 
+          `Bem-vindo ao Mine Wealth! Você foi referido por ${referralCode}` : 
+          "Bem-vindo ao Mine Wealth!",
       });
     } catch (error: any) {
       console.error('Signup error:', error);

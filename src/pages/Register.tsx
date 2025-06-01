@@ -1,11 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { trackAffiliateClick } from '@/services/paymentService';
 import { Coins, Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
@@ -18,8 +19,23 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Verificar se há código de afiliado na URL e rastrear clique
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode) {
+      setReferralCode(refCode);
+      console.log('Código de afiliado detectado:', refCode);
+      
+      // Rastrear clique no link de afiliado
+      trackAffiliateClick(refCode);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +81,16 @@ const Register = () => {
           <p className="text-gray-400 mt-2">
             Comece a ganhar dinheiro automaticamente
           </p>
+          {referralCode && (
+            <div className="mt-4 p-3 bg-green-400/10 border border-green-400/20 rounded-lg">
+              <p className="text-green-300 text-sm">
+                🎉 Você foi convidado por um afiliado Mine Wealth!
+              </p>
+              <p className="text-green-400 text-xs">
+                Código: {referralCode}
+              </p>
+            </div>
+          )}
         </div>
 
         <Card className="bg-gray-800 border-gray-700">

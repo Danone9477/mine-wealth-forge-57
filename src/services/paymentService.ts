@@ -129,14 +129,18 @@ export const processPayment = async (
 
 export const processAffiliateCommission = async (depositAmount: number, userUID: string, userData: any) => {
   try {
-    if (!userData?.referredBy) return;
+    if (!userData?.referredBy) {
+      console.log('Usuário não foi referido por ninguém');
+      return;
+    }
 
     const commission = depositAmount * 0.30; // 30% de comissão
     
     console.log('Processando comissão de afiliado:', {
       referredBy: userData.referredBy,
       commission,
-      depositAmount
+      depositAmount,
+      userUID
     });
     
     // Buscar o afiliado que fez a referência
@@ -150,6 +154,8 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
     if (!affiliateSnapshot.empty) {
       const affiliateDoc = affiliateSnapshot.docs[0];
       const affiliateData = affiliateDoc.data();
+      
+      console.log('Afiliado encontrado para comissão:', affiliateData.username);
       
       // Atualizar dados do afiliado
       const newAffiliateBalance = (affiliateData.affiliateBalance || 0) + commission;
@@ -167,7 +173,26 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
       };
       
       const activeReferralsList = currentStats.activeReferralsList || [];
-      const updatedActiveReferralsList = [...activeReferralsList, newActiveReferral];
+      
+      // Verificar se este usuário já está na lista de ativos
+      const existingReferralIndex = activeReferralsList.findIndex(
+        (ref: any) => ref.username === userData.username
+      );
+      
+      let updatedActiveReferralsList;
+      if (existingReferralIndex >= 0) {
+        // Atualizar registro existente
+        updatedActiveReferralsList = [...activeReferralsList];
+        updatedActiveReferralsList[existingReferralIndex] = {
+          ...updatedActiveReferralsList[existingReferralIndex],
+          commission: updatedActiveReferralsList[existingReferralIndex].commission + commission,
+          depositAmount: updatedActiveReferralsList[existingReferralIndex].depositAmount + depositAmount,
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        // Adicionar novo registro
+        updatedActiveReferralsList = [...activeReferralsList, newActiveReferral];
+      }
       
       // Atualizar estatísticas
       const updatedStats = {
@@ -184,7 +209,7 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
         affiliateStats: updatedStats
       });
       
-      console.log(`Comissão de ${commission} MT creditada ao afiliado ${userData.referredBy}`);
+      console.log(`Comissão de ${commission} MT creditada ao afiliado ${userData.referredBy}. Novo saldo: ${newAffiliateBalance} MT`);
       return true;
     } else {
       console.log('Afiliado não encontrado:', userData.referredBy);
@@ -198,7 +223,10 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
 
 export const trackAffiliateClick = async (affiliateCode: string) => {
   try {
-    if (!affiliateCode) return;
+    if (!affiliateCode) {
+      console.log('Código de afiliado vazio');
+      return;
+    }
     
     console.log('Registrando clique do afiliado:', affiliateCode);
     
@@ -213,6 +241,8 @@ export const trackAffiliateClick = async (affiliateCode: string) => {
     if (!affiliateSnapshot.empty) {
       const affiliateDoc = affiliateSnapshot.docs[0];
       const affiliateData = affiliateDoc.data();
+      
+      console.log('Afiliado encontrado para clique:', affiliateData.username);
       
       const currentStats = affiliateData.affiliateStats || {};
       const currentClicks = currentStats.totalClicks || 0;
@@ -230,8 +260,10 @@ export const trackAffiliateClick = async (affiliateCode: string) => {
         affiliateStats: updatedStats
       });
       
-      console.log(`Clique registrado para afiliado ${affiliateCode}`);
+      console.log(`Clique registrado para afiliado ${affiliateCode}. Total cliques: ${updatedStats.totalClicks}`);
       return true;
+    } else {
+      console.log('Afiliado não encontrado para código:', affiliateCode);
     }
     
     return false;
