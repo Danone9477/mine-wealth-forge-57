@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { CreditCard, Smartphone, Wallet, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Smartphone, Wallet, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { processPayment, processAffiliateCommission } from '@/services/paymentService';
 
 const Deposit = () => {
   const { userData, updateUserData } = useAuth();
@@ -20,7 +21,6 @@ const Deposit = () => {
   const paymentMethods = [
     { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, color: 'from-green-500 to-green-600' },
     { id: 'emola', name: 'e-Mola', icon: Wallet, color: 'from-blue-500 to-blue-600' },
-    { id: 'ponto24', name: 'Ponto 24', icon: CreditCard, color: 'from-purple-500 to-purple-600' },
   ];
 
   const handleDeposit = async () => {
@@ -55,35 +55,54 @@ const Deposit = () => {
     setLoading(true);
 
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const paymentResult = await processPayment(
+        paymentMethod as 'emola' | 'mpesa',
+        phoneNumber,
+        depositAmount,
+        userData.username
+      );
 
-      const transaction = {
-        id: Date.now().toString(),
-        type: 'deposit' as const,
-        amount: depositAmount,
-        status: 'success' as const,
-        date: new Date().toISOString(),
-        description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
-        paymentMethod,
-        phoneNumber
-      };
+      console.log('Resultado do pagamento:', paymentResult);
 
-      await updateUserData({
-        balance: userData.balance + depositAmount,
-        transactions: [...(userData.transactions || []), transaction]
-      });
+      if (paymentResult.success) {
+        // Processar comissão de afiliado se aplicável
+        await processAffiliateCommission(depositAmount, userData.uid, userData);
 
-      toast({
-        title: "Depósito realizado com sucesso! 🎉",
-        description: `${depositAmount} MT foram adicionados à sua conta`,
-      });
+        const transaction = {
+          id: Date.now().toString(),
+          type: 'deposit' as const,
+          amount: depositAmount,
+          status: 'success' as const,
+          date: new Date().toISOString(),
+          description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
+          paymentMethod,
+          phoneNumber,
+          transactionId: paymentResult.transactionId
+        };
 
-      setAmount('');
-      setPhoneNumber('');
-      setPaymentMethod('');
+        await updateUserData({
+          balance: userData.balance + depositAmount,
+          transactions: [...(userData.transactions || []), transaction]
+        });
+
+        toast({
+          title: "Depósito realizado com sucesso! 🎉",
+          description: `${depositAmount} MT foram adicionados à sua conta`,
+        });
+
+        setAmount('');
+        setPhoneNumber('');
+        setPaymentMethod('');
+      } else {
+        toast({
+          title: "Erro no pagamento",
+          description: paymentResult.message,
+          variant: "destructive",
+        });
+      }
 
     } catch (error) {
+      console.error('Erro no processamento do depósito:', error);
       toast({
         title: "Erro no depósito",
         description: "Erro ao processar o depósito. Tente novamente.",
@@ -235,7 +254,7 @@ const Deposit = () => {
                       </div>
                       <div>
                         <h4 className="text-white font-semibold">{method.name}</h4>
-                        <p className="text-gray-400 text-sm">Transferência instantânea</p>
+                        <p className="text-gray-400 text-sm">Transferência via MozPayment</p>
                       </div>
                       <Badge className="ml-auto bg-green-600 text-white">Ativo</Badge>
                     </div>
@@ -255,11 +274,11 @@ const Deposit = () => {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Transações protegidas por SSL</span>
+                  <span className="text-gray-300 text-sm">Transações protegidas por MozPayment</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Processamento instantâneo</span>
+                  <span className="text-gray-300 text-sm">Processamento em tempo real</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
@@ -284,15 +303,11 @@ const Deposit = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">M-Pesa</span>
-                    <Badge className="bg-green-600 text-white">Instantâneo</Badge>
+                    <Badge className="bg-green-600 text-white">1-3 min</Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">e-Mola</span>
                     <Badge className="bg-green-600 text-white">Instantâneo</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Ponto 24</span>
-                    <Badge className="bg-blue-600 text-white">1-5 min</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -310,10 +325,11 @@ const Deposit = () => {
                   <h3 className="text-yellow-400 font-semibold mb-2">Informações Importantes</h3>
                   <ul className="text-gray-300 space-y-1 text-sm">
                     <li>• Valor mínimo de depósito: 100 MT</li>
-                    <li>• Depósitos são processados automaticamente</li>
-                    <li>• Guarde o comprovante da transação</li>
-                    <li>• Em caso de problemas, contacte o suporte</li>
+                    <li>• Pagamentos processados via MozPayment</li>
+                    <li>• Certifique-se que tem saldo suficiente na carteira</li>
+                    <li>• Digite o PIN correto quando solicitado</li>
                     <li>• Verifique se o número inserido está correto</li>
+                    <li>• Em caso de problemas, contacte o suporte</li>
                   </ul>
                 </div>
               </div>

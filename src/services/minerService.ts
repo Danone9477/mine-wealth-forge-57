@@ -61,10 +61,22 @@ export const processDailyMinerRewards = async () => {
         const newBalance = (userData.balance || 0) + dailyEarnings;
         const newTotalEarnings = (userData.totalEarnings || 0) + dailyEarnings;
         
+        // Calcular ganhos mensais (últimos 30 dias)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const monthlyEarnings = (userData.transactions || [])
+          .filter((transaction: any) => 
+            transaction.type === 'mining_reward' && 
+            new Date(transaction.date) >= thirtyDaysAgo
+          )
+          .reduce((sum: number, transaction: any) => sum + transaction.amount, 0) + dailyEarnings;
+        
         await updateDoc(doc(db, 'users', userDoc.id), {
           miners: updatedMiners,
           balance: newBalance,
           totalEarnings: newTotalEarnings,
+          monthlyEarnings: monthlyEarnings,
           lastMinerUpdate: today.toISOString()
         });
         
