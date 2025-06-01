@@ -166,16 +166,16 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
         timestamp: new Date().toISOString()
       };
       
-      const activeReferrals = currentStats.activeReferrals || [];
-      const updatedActiveReferrals = [...activeReferrals, newActiveReferral];
+      const activeReferralsList = currentStats.activeReferralsList || [];
+      const updatedActiveReferralsList = [...activeReferralsList, newActiveReferral];
       
       // Atualizar estatísticas
       const updatedStats = {
         ...currentStats,
         totalCommissions: newTotalCommissions,
         monthlyCommissions: newMonthlyCommissions,
-        activeReferralsCount: updatedActiveReferrals.length,
-        activeReferrals: updatedActiveReferrals,
+        activeReferralsCount: updatedActiveReferralsList.length,
+        activeReferralsList: updatedActiveReferralsList,
         lastCommissionDate: new Date().toISOString()
       };
       

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
@@ -6,13 +7,13 @@ import { toast } from '@/hooks/use-toast';
 
 interface AffiliateStats {
   totalInvited: number;
-  activeReferrals: number;
+  activeReferralsCount: number; // Changed from activeReferrals to activeReferralsCount
   totalCommissions: number;
   monthlyCommissions: number;
   totalClicks: number;
   todayClicks: number;
   lastClickDate?: string;
-  activeReferrals: Array<{
+  activeReferralsList: Array<{ // Renamed from activeReferrals to activeReferralsList
     username: string;
     date: string;
     commission: number;
@@ -149,12 +150,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         referredBy: referralCode || undefined,
         affiliateStats: {
           totalInvited: 0,
-          activeReferrals: 0,
+          activeReferralsCount: 0,
           totalCommissions: 0,
           monthlyCommissions: 0,
           totalClicks: 0,
           todayClicks: 0,
-          activeReferrals: [],
+          activeReferralsList: [],
           referralsList: []
         }
       };

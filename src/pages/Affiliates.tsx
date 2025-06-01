@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,7 @@ const Affiliates = () => {
     monthlyCommissions: userData?.affiliateStats?.monthlyCommissions || 0,
     totalClicks: userData?.affiliateStats?.totalClicks || 0,
     todayClicks: userData?.affiliateStats?.todayClicks || 0,
-    activeReferrals: userData?.affiliateStats?.activeReferrals || []
+    activeReferralsList: userData?.affiliateStats?.activeReferralsList || []
   };
 
   const minWithdraw = 300;
@@ -58,7 +57,8 @@ const Affiliates = () => {
           monthlyCommissions: 0,
           totalClicks: 0,
           todayClicks: 0,
-          activeReferrals: []
+          activeReferralsList: [],
+          referralsList: []
         }
       });
     }
@@ -326,9 +326,9 @@ const Affiliates = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {affiliateStats.activeReferrals && affiliateStats.activeReferrals.length > 0 ? (
+                {affiliateStats.activeReferralsList && affiliateStats.activeReferralsList.length > 0 ? (
                   <div className="space-y-3">
-                    {affiliateStats.activeReferrals.map((referral: any, index: number) => (
+                    {affiliateStats.activeReferralsList.map((referral: any, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                         <div>
                           <p className="text-white font-medium">{referral.username}</p>
@@ -435,7 +435,7 @@ const Affiliates = () => {
                     <span className="text-gray-300">Taxa de conversão:</span>
                     <span className="text-white font-bold">
                       {affiliateStats.totalInvited > 0 
-                        ? `${((affiliateStats.activeReferrals / affiliateStats.totalInvited) * 100).toFixed(1)}%`
+                        ? `${((affiliateStats.activeReferralsCount / affiliateStats.totalInvited) * 100).toFixed(1)}%`
                         : '0%'
                       }
                     </span>
