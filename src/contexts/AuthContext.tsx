@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 
@@ -38,8 +38,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to find email by username
+  const findEmailByUsername = async (username: string): Promise<string | null> => {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', username));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        return userDoc.data().email;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error finding user by username:', error);
+      return null;
+    }
+  };
+
   const signup = async (email: string, password: string, username: string) => {
     try {
+      // Check if username already exists
+      const existingEmail = await findEmailByUsername(username);
+      if (existingEmail) {
+        toast({
+          title: "Nome de usuário já existe",
+          description: "Escolha outro nome de usuário",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const newUserData: UserData = {
         uid: result.user.uid,
@@ -58,9 +87,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Bem-vindo ao MineWealth Forge!",
       });
     } catch (error: any) {
+      console.error('Signup error:', error);
+      let errorMessage = "Erro ao criar conta";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "Este email já está em uso";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Senha muito fraca";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email inválido";
+      }
+      
       toast({
         title: "Erro ao criar conta",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -69,16 +109,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrUsername: string, password: string) => {
     try {
-      // For simplicity, we'll assume it's an email. In production, you'd check if it's username first
-      await signInWithEmailAndPassword(auth, emailOrUsername, password);
+      let email = emailOrUsername;
+      
+      // Check if it's a username (no @ symbol)
+      if (!emailOrUsername.includes('@')) {
+        const foundEmail = await findEmailByUsername(emailOrUsername);
+        if (!foundEmail) {
+          toast({
+            title: "Usuário não encontrado",
+            description: "Nome de usuário não existe",
+            variant: "destructive",
+          });
+          return;
+        }
+        email = foundEmail;
+      }
+      
+      await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo de volta!",
       });
     } catch (error: any) {
+      console.error('Login error:', error);
+      let errorMessage = "Email/username ou senha incorretos";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "Usuário não encontrado";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Senha incorreta";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email inválido";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Muitas tentativas. Tente novamente mais tarde";
+      }
+      
       toast({
         title: "Erro no login",
-        description: "Email/username ou senha incorretos",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -110,9 +178,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Verifique sua caixa de entrada para redefinir sua senha",
       });
     } catch (error: any) {
+      let errorMessage = "Verifique se o email está correto";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "Email não encontrado";
+      }
+      
       toast({
         title: "Erro no envio",
-        description: "Verifique se o email está correto",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -127,6 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(doc(db, 'users', user.uid), updatedData);
       setUserData(updatedData);
     } catch (error: any) {
+      console.error('Update user data error:', error);
       toast({
         title: "Erro ao atualizar dados",
         description: error.message,
