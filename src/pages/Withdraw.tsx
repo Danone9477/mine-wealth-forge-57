@@ -17,7 +17,8 @@ const Withdraw = () => {
   const [loading, setLoading] = useState(false);
 
   const minWithdraw = 50;
-  const canWithdraw = userData?.miners?.length > 0;
+  // Verificar se pode sacar: tem minerador OU permissão manual do admin
+  const canWithdraw = (userData?.miners?.length > 0) || userData?.canWithdraw === true;
 
   const handleWithdraw = async () => {
     if (!userData) {
@@ -32,7 +33,7 @@ const Withdraw = () => {
     if (!canWithdraw) {
       toast({
         title: "Saque não permitido",
-        description: "Você precisa comprar pelo menos 1 minerador antes de poder fazer saques",
+        description: "Você precisa comprar pelo menos 1 minerador ou ter autorização do administrador",
         variant: "destructive",
       });
       return;
@@ -212,7 +213,7 @@ const Withdraw = () => {
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-red-400">Saque Bloqueado</h3>
                   <p className="text-gray-300 text-sm">
-                    Você precisa comprar pelo menos 1 minerador antes de poder fazer saques. 
+                    Você precisa comprar pelo menos 1 minerador ou ter autorização do administrador. 
                     <Button asChild variant="link" className="text-gold-400 hover:text-gold-300 p-0 ml-1 h-auto">
                       <a href="/miners">Compre agora</a>
                     </Button>
@@ -319,7 +320,7 @@ const Withdraw = () => {
                       Processando Saque...
                     </div>
                   ) : !canWithdraw ? (
-                    'Compre um Minerador Primeiro'
+                    'Compre um Minerador ou Solicite Autorização'
                   ) : (
                     `Solicitar Saque de ${amount || '0'} MT`
                   )}
@@ -339,13 +340,13 @@ const Withdraw = () => {
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    {userData.miners?.length > 0 ? (
+                    {canWithdraw ? (
                       <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
                     ) : (
                       <div className="h-4 w-4 border border-gray-400 rounded-full flex-shrink-0" />
                     )}
-                    <span className={`text-sm ${userData.miners?.length > 0 ? 'text-green-400' : 'text-gray-400'}`}>
-                      Ter pelo menos 1 minerador
+                    <span className={`text-sm ${canWithdraw ? 'text-green-400' : 'text-gray-400'}`}>
+                      Ter minerador OU autorização admin
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -387,29 +388,25 @@ const Withdraw = () => {
             {/* Miners Status */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Seus Mineradores</CardTitle>
+                <CardTitle className="text-white text-lg">Status dos Saques</CardTitle>
               </CardHeader>
               <CardContent>
-                {userData.miners?.length > 0 ? (
-                  <div className="space-y-3">
-                    {userData.miners.slice(0, 3).map((miner, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                        <div>
-                          <p className="text-white font-medium text-sm">{miner.name}</p>
-                          <p className="text-xs text-gray-400">{miner.dailyReturn} MT/dia</p>
-                        </div>
-                        <Badge className="bg-green-600 text-white text-xs">Ativo</Badge>
-                      </div>
-                    ))}
-                    {userData.miners.length > 3 && (
-                      <p className="text-center text-gray-400 text-sm">
-                        +{userData.miners.length - 3} minerador(es)
-                      </p>
-                    )}
+                {canWithdraw ? (
+                  <div className="text-center py-4">
+                    <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
+                    <p className="text-green-400 font-semibold mb-2">Saques Liberados</p>
+                    <p className="text-gray-400 text-sm">
+                      {userData.miners?.length > 0 ? 
+                        `Você tem ${userData.miners.length} minerador(es) ativo(s)` : 
+                        'Autorizado pelo administrador'
+                      }
+                    </p>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-gray-400 mb-3 text-sm">Nenhum minerador ativo</p>
+                    <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-3" />
+                    <p className="text-red-400 font-semibold mb-2">Saques Bloqueados</p>
+                    <p className="text-gray-400 text-sm mb-3">Compre um minerador primeiro</p>
                     <Button asChild className="bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 text-sm">
                       <a href="/miners">Comprar Minerador</a>
                     </Button>

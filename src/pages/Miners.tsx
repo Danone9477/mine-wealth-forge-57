@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,38 +16,38 @@ const Miners = () => {
     {
       id: 'basic',
       name: 'Minerador Básico',
-      price: 100,
-      dailyReturn: 5,
+      price: 50,
+      dailyReturn: 2.5,
       duration: 30,
       description: 'Ideal para iniciantes',
       roi: '150%',
       icon: Pickaxe,
       color: 'from-blue-500 to-blue-600',
-      features: ['5 MT por dia', '30 dias de mineração', 'ROI: 150%', 'Suporte básico']
+      features: ['2.5 MT por dia', '30 dias de mineração', 'ROI: 150%', 'Suporte básico']
     },
     {
       id: 'advanced',
       name: 'Minerador Avançado',
-      price: 500,
-      dailyReturn: 30,
+      price: 250,
+      dailyReturn: 15,
       duration: 30,
       description: 'Para investidores experientes',
       roi: '180%',
       icon: Zap,
       color: 'from-purple-500 to-purple-600',
-      features: ['30 MT por dia', '30 dias de mineração', 'ROI: 180%', 'Suporte prioritário']
+      features: ['15 MT por dia', '30 dias de mineração', 'ROI: 180%', 'Suporte prioritário']
     },
     {
       id: 'premium',
       name: 'Minerador Premium',
-      price: 1000,
-      dailyReturn: 70,
+      price: 500,
+      dailyReturn: 35,
       duration: 30,
       description: 'Máximo retorno garantido',
       roi: '210%',
       icon: Star,
       color: 'from-gold-500 to-gold-600',
-      features: ['70 MT por dia', '30 dias de mineração', 'ROI: 210%', 'Suporte VIP']
+      features: ['35 MT por dia', '30 dias de mineração', 'ROI: 210%', 'Suporte VIP']
     }
   ];
 
@@ -98,15 +97,17 @@ const Miners = () => {
 
       const updatedTransactions = [...(userData.transactions || []), transaction];
 
+      // Habilitar saques automaticamente ao comprar minerador
       await updateUserData({
         balance: newBalance,
         miners: updatedMiners,
-        transactions: updatedTransactions
+        transactions: updatedTransactions,
+        canWithdraw: true
       });
 
       toast({
         title: "🎉 Minerador comprado com sucesso!",
-        description: `${miner.name} está ativo e começará a gerar ${miner.dailyReturn} MT por dia`,
+        description: `${miner.name} está ativo e começará a gerar ${miner.dailyReturn} MT por dia. Saques liberados!`,
       });
 
     } catch (error) {

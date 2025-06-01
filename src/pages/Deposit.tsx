@@ -17,7 +17,8 @@ const Deposit = () => {
   const [loading, setLoading] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'emola' | 'mpesa'>('emola');
 
-  const minDeposit = 100;
+  const minDeposit = 50;
+  const siteName = "Kira Trading Bot";
 
   const handleDeposit = async () => {
     if (!userData) {
@@ -65,14 +66,14 @@ const Deposit = () => {
     setLoading(true);
 
     try {
-      console.log('Iniciando depósito melhorado:', {
+      console.log('Iniciando depósito:', {
         method: selectedMethod,
         amount: depositAmount,
         phone: phone,
         username: userData.username
       });
 
-      // Usar o novo serviço de pagamento
+      // Usar o serviço de pagamento
       const paymentResult = await processPayment(
         selectedMethod,
         phone,
@@ -88,9 +89,9 @@ const Deposit = () => {
         phone,
         status: paymentResult.success ? 'success' as const : 'failed' as const,
         date: new Date().toISOString(),
-        description: `Depósito via ${selectedMethod.toUpperCase()} - MozPayment`,
-        mozpayment_response: paymentResult.rawResponse,
-        mozpayment_message: paymentResult.message,
+        description: `Depósito via ${selectedMethod.toUpperCase()} - ${siteName}`,
+        response: paymentResult.rawResponse,
+        message: paymentResult.message,
         transactionId: paymentResult.transactionId
       };
 
@@ -125,7 +126,7 @@ const Deposit = () => {
       }
 
     } catch (error) {
-      console.error('Erro completo no depósito:', error);
+      console.error('Erro no depósito:', error);
       
       const failedTransaction = {
         id: Date.now().toString(),
@@ -135,7 +136,7 @@ const Deposit = () => {
         phone,
         status: 'failed' as const,
         date: new Date().toISOString(),
-        description: `Falha no depósito via ${selectedMethod.toUpperCase()} - MozPayment`,
+        description: `Falha no depósito via ${selectedMethod.toUpperCase()} - ${siteName}`,
         error: error instanceof Error ? error.message : 'Erro desconhecido'
       };
 
@@ -176,7 +177,7 @@ const Deposit = () => {
             </span>
           </h1>
           <p className="text-gray-400 text-base sm:text-lg">
-            Sistema de pagamento MozPayment integrado e otimizado
+            Sistema de pagamento {siteName} integrado
           </p>
           <div className="inline-flex items-center gap-2 mt-4 bg-green-500/20 border border-green-500/30 rounded-full px-4 sm:px-6 py-2 sm:py-3">
             <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
@@ -191,7 +192,7 @@ const Deposit = () => {
               <CardHeader>
                 <CardTitle className="text-white">Detalhes do Depósito</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Sistema integrado MozPayment - Processamento otimizado
+                  Sistema {siteName} - Processamento seguro
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -276,9 +277,9 @@ const Deposit = () => {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
                       <div>
-                        <p className="text-green-300 font-medium text-sm">Sistema MozPayment Ativo</p>
+                        <p className="text-green-300 font-medium text-sm">Sistema {siteName} Ativo</p>
                         <p className="text-gray-300 text-xs">
-                          API integrada e otimizada para processamento rápido
+                          Processamento seguro e confiável
                         </p>
                       </div>
                     </div>
@@ -295,7 +296,7 @@ const Deposit = () => {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                      Processando via MozPayment...
+                      Processando via {siteName}...
                     </div>
                   ) : (
                     `Depositar ${amount || '0'} MT`
@@ -315,7 +316,7 @@ const Deposit = () => {
                   <h3 className="text-base sm:text-lg font-bold text-white">100% Seguro</h3>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Sistema MozPayment integrado com verificação avançada e processamento otimizado.
+                  Sistema {siteName} integrado com verificação avançada e processamento seguro.
                 </p>
               </CardContent>
             </Card>
@@ -325,10 +326,10 @@ const Deposit = () => {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400 flex-shrink-0" />
-                  <h3 className="text-base sm:text-lg font-bold text-white">Processamento Instantâneo</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-white">Processamento Rápido</h3>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  API MozPayment otimizada para aprovação rápida e creditação automática do saldo.
+                  Sistema otimizado para aprovação rápida e creditação automática do saldo.
                 </p>
               </CardContent>
             </Card>
@@ -349,23 +350,23 @@ const Deposit = () => {
               </CardContent>
             </Card>
 
-            {/* Enhanced API Info */}
+            {/* System Info */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Sistema MozPayment Avançado</CardTitle>
+                <CardTitle className="text-white text-lg">Sistema {siteName}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
-                    <p className="text-white font-medium">API Otimizada</p>
-                    <p className="text-gray-400 text-sm">Integração oficial MozPayment melhorada</p>
+                    <p className="text-white font-medium">Sistema Seguro</p>
+                    <p className="text-gray-400 text-sm">Integração oficial e segura</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
-                    <p className="text-white font-medium">Verificação Avançada</p>
+                    <p className="text-white font-medium">Verificação Automática</p>
                     <p className="text-gray-400 text-sm">Sistema de validação inteligente</p>
                   </div>
                 </div>
