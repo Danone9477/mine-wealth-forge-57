@@ -34,11 +34,13 @@ const Affiliates = () => {
   // Estatísticas de afiliados melhoradas
   const affiliateStats = {
     totalInvited: userData?.affiliateStats?.totalInvited || 0, // Pessoas que se registraram
-    activeReferrals: userData?.affiliateStats?.activeReferrals || 0, // Pessoas que fizeram depósitos
+    activeReferralsCount: userData?.affiliateStats?.activeReferralsCount || 0, // Pessoas que fizeram depósitos
     totalCommissions: userData?.affiliateStats?.totalCommissions || 0,
     affiliateBalance: userData?.affiliateBalance || 0,
     monthlyCommissions: userData?.affiliateStats?.monthlyCommissions || 0,
-    referralsList: userData?.affiliateStats?.referralsList || []
+    totalClicks: userData?.affiliateStats?.totalClicks || 0,
+    todayClicks: userData?.affiliateStats?.todayClicks || 0,
+    activeReferrals: userData?.affiliateStats?.activeReferrals || []
   };
 
   const minWithdraw = 300;
@@ -51,10 +53,12 @@ const Affiliates = () => {
         affiliateBalance: 0,
         affiliateStats: {
           totalInvited: 0,
-          activeReferrals: 0,
+          activeReferralsCount: 0,
           totalCommissions: 0,
           monthlyCommissions: 0,
-          referralsList: []
+          totalClicks: 0,
+          todayClicks: 0,
+          activeReferrals: []
         }
       });
     }
@@ -181,65 +185,63 @@ const Affiliates = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
             <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-              Programa de Afiliados
+              Programa de Afiliados Mine Wealth
             </span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Ganhe 30% de comissão sobre cada depósito dos usuários que você convidar. 
-            Construa sua rede e maximize seus lucros!
+            Construa sua rede e maximize seus lucros no Mine Wealth!
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards - Updated with new metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-300 text-sm font-medium">Pessoas Convidadas</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.totalInvited}</p>
-                  <p className="text-blue-400 text-xs">Registros pelo seu link</p>
-                </div>
-                <UserPlus className="h-8 w-8 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-300 text-sm font-medium">Referidos Ativos</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.activeReferrals}</p>
-                  <p className="text-green-400 text-xs">Que fizeram depósitos</p>
-                </div>
-                <Users className="h-8 w-8 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gold-300 text-sm font-medium">Saldo de Afiliado</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.affiliateBalance.toFixed(2)} MT</p>
-                  <p className="text-gold-400 text-xs">Disponível para saque</p>
-                </div>
-                <Wallet className="h-8 w-8 text-gold-400" />
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-blue-300 text-xs font-medium">Cliques no Link</p>
+                <p className="text-2xl font-bold text-white">{affiliateStats.totalClicks}</p>
+                <p className="text-blue-400 text-xs">Hoje: {affiliateStats.todayClicks}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border-purple-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-300 text-sm font-medium">Total de Comissões</p>
-                  <p className="text-3xl font-bold text-white">{affiliateStats.totalCommissions.toFixed(2)} MT</p>
-                  <p className="text-purple-400 text-xs">Ganhos acumulados</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-purple-400" />
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-purple-300 text-xs font-medium">Registros</p>
+                <p className="text-2xl font-bold text-white">{affiliateStats.totalInvited}</p>
+                <p className="text-purple-400 text-xs">Via seu link</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-green-300 text-xs font-medium">Usuários Ativos</p>
+                <p className="text-2xl font-bold text-white">{affiliateStats.activeReferralsCount}</p>
+                <p className="text-green-400 text-xs">Fizeram depósito</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-gold-300 text-xs font-medium">Saldo Afiliado</p>
+                <p className="text-2xl font-bold text-white">{affiliateStats.affiliateBalance.toFixed(2)}</p>
+                <p className="text-gold-400 text-xs">MT disponível</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-900/50 to-orange-800/50 border-orange-700">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-orange-300 text-xs font-medium">Total Ganho</p>
+                <p className="text-2xl font-bold text-white">{affiliateStats.totalCommissions.toFixed(2)}</p>
+                <p className="text-orange-400 text-xs">MT em comissões</p>
               </div>
             </CardContent>
           </Card>
@@ -252,10 +254,10 @@ const Affiliates = () => {
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <Share2 className="h-5 w-5 text-gold-400" />
-                  Seu Link de Afiliado
+                  Seu Link de Afiliado Mine Wealth
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Compartilhe este link para convidar novos usuários e ganhar comissões
+                  Compartilhe este link para convidar novos usuários e ganhar comissões no Mine Wealth
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -301,11 +303,11 @@ const Affiliates = () => {
                   <div className="flex items-start gap-3">
                     <Gift className="h-5 w-5 text-gold-400 mt-0.5" />
                     <div>
-                      <h4 className="text-gold-400 font-semibold">Como Funciona:</h4>
+                      <h4 className="text-gold-400 font-semibold">Como Funciona no Mine Wealth:</h4>
                       <ul className="text-gray-300 text-sm space-y-1 mt-2">
-                        <li>• Compartilhe seu link com amigos e conhecidos</li>
-                        <li>• Quando alguém se registrar pelo seu link: +1 pessoa convidada</li>
-                        <li>• Quando essa pessoa fizer um depósito: +1 referido ativo</li>
+                        <li>• Cada clique no seu link é contabilizado</li>
+                        <li>• Quando alguém se registrar: +1 registro</li>
+                        <li>• Quando essa pessoa fizer depósito: +1 usuário ativo</li>
                         <li>• Você ganha 30% do valor de cada depósito como comissão</li>
                         <li>• Saque mínimo de 300 MT das suas comissões</li>
                       </ul>
@@ -324,13 +326,14 @@ const Affiliates = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {affiliateStats.referralsList.length > 0 ? (
+                {affiliateStats.activeReferrals && affiliateStats.activeReferrals.length > 0 ? (
                   <div className="space-y-3">
-                    {affiliateStats.referralsList.map((referral: any, index: number) => (
+                    {affiliateStats.activeReferrals.map((referral: any, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                         <div>
                           <p className="text-white font-medium">{referral.username}</p>
                           <p className="text-gray-400 text-sm">Depósito em {referral.date}</p>
+                          <p className="text-gray-500 text-xs">Valor: {referral.depositAmount} MT</p>
                         </div>
                         <div className="text-right">
                           <p className="text-green-400 font-bold">+{referral.commission.toFixed(2)} MT</p>

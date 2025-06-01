@@ -1,5 +1,3 @@
-
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,24 +76,25 @@ const Deposit = () => {
 
       console.log('Resultado completo do pagamento:', paymentResult);
 
+      // Criar transação no histórico
+      const transaction = {
+        id: Date.now().toString(),
+        type: 'deposit' as const,
+        amount: depositAmount,
+        status: paymentResult.success ? 'success' as const : 'failed' as const,
+        date: new Date().toISOString(),
+        description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
+        paymentMethod,
+        phoneNumber,
+        transactionId: paymentResult.transactionId
+      };
+
       if (paymentResult.success) {
         // Processar comissão de afiliado se aplicável
         if (userData.referredBy) {
           console.log('Processando comissão para:', userData.referredBy);
           await processAffiliateCommission(depositAmount, userData.uid, userData);
         }
-
-        const transaction = {
-          id: Date.now().toString(),
-          type: 'deposit' as const,
-          amount: depositAmount,
-          status: 'success' as const,
-          date: new Date().toISOString(),
-          description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
-          paymentMethod,
-          phoneNumber,
-          transactionId: paymentResult.transactionId
-        };
 
         const newBalance = userData.balance + depositAmount;
         console.log('Atualizando saldo:', { oldBalance: userData.balance, newBalance, depositAmount });
@@ -115,8 +114,13 @@ const Deposit = () => {
         setPhoneNumber('');
         setPaymentMethod('');
       } else {
+        // Adicionar transação falhada ao histórico
+        await updateUserData({
+          transactions: [...(userData.transactions || []), transaction]
+        });
+
         toast({
-          title: "Pagamento não aprovado",
+          title: "Depósito não aprovado",
           description: paymentResult.message,
           variant: "destructive",
         });
@@ -130,6 +134,23 @@ const Deposit = () => {
 
     } catch (error) {
       console.error('Erro crítico no processamento do depósito:', error);
+      
+      // Adicionar transação de erro ao histórico
+      const errorTransaction = {
+        id: Date.now().toString(),
+        type: 'deposit' as const,
+        amount: depositAmount,
+        status: 'failed' as const,
+        date: new Date().toISOString(),
+        description: `Erro no depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
+        paymentMethod,
+        phoneNumber
+      };
+
+      await updateUserData({
+        transactions: [...(userData.transactions || []), errorTransaction]
+      });
+
       toast({
         title: "Erro no sistema",
         description: "Erro interno no processamento. Tente novamente.",
@@ -164,7 +185,7 @@ const Deposit = () => {
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-              Adicione fundos à sua conta Alpha Traders de forma rápida e segura
+              Adicione fundos à sua conta Mine Wealth de forma rápida e segura
             </p>
           </div>
 
@@ -192,7 +213,7 @@ const Deposit = () => {
             <CardHeader>
               <CardTitle className="text-white text-xl sm:text-2xl">Informações do Depósito</CardTitle>
               <CardDescription className="text-gray-300">
-                Preencha os dados para realizar seu depósito via MozPayment
+                Preencha os dados para realizar seu depósito via Mine Wealth Payment
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -281,7 +302,7 @@ const Deposit = () => {
                       </div>
                       <div>
                         <h4 className="text-white font-semibold">{method.name}</h4>
-                        <p className="text-gray-400 text-sm">Transferência via MozPayment</p>
+                        <p className="text-gray-400 text-sm">Transferência via Mine Wealth Payment</p>
                       </div>
                       <Badge className="ml-auto bg-green-600 text-white">Ativo</Badge>
                     </div>
@@ -327,10 +348,10 @@ const Deposit = () => {
                     <h3 className="text-yellow-400 font-semibold mb-2">Informações Importantes</h3>
                     <ul className="text-gray-300 space-y-1 text-sm">
                       <li>• Valor mínimo: 100 MT</li>
-                      <li>• Processamento via MozPayment</li>
+                      <li>• Processamento via Mine Wealth Payment</li>
                       <li>• Certifique-se que tem saldo suficiente</li>
                       <li>• Digite o PIN correto quando solicitado</li>
-                      <li>• Suporte: contato@alphatraders.co.mz</li>
+                      <li>• Suporte: contato@minewealth.co.mz</li>
                     </ul>
                   </div>
                 </div>
@@ -344,4 +365,3 @@ const Deposit = () => {
 };
 
 export default Deposit;
-

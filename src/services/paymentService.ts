@@ -1,3 +1,4 @@
+
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -21,7 +22,7 @@ export const processPayment = async (
       ? 'https://mozpayment.co.mz/api/1.1/wf/pagamentorotativoemola'
       : 'https://mozpayment.co.mz/api/1.1/wf/pagamentorotativompesa';
 
-    console.log('Iniciando pagamento MozPayment:', {
+    console.log('Iniciando pagamento Mine Wealth:', {
       endpoint,
       amount,
       phone,
@@ -43,7 +44,7 @@ export const processPayment = async (
       })
     });
 
-    console.log('MozPayment Response Status:', response.status);
+    console.log('Mine Wealth Payment Response Status:', response.status);
 
     if (method === 'mpesa') {
       // Processar resposta M-Pesa baseada no status HTTP
@@ -120,7 +121,7 @@ export const processPayment = async (
     console.error('Erro no processamento do pagamento:', error);
     return {
       success: false,
-      message: 'Erro de conectividade com MozPayment',
+      message: 'Erro de conectividade com Mine Wealth Payment',
       rawResponse: error instanceof Error ? error.message : 'Erro desconhecido'
     };
   }
@@ -191,6 +192,51 @@ export const processAffiliateCommission = async (depositAmount: number, userUID:
     }
   } catch (error) {
     console.error('Erro ao processar comissão do afiliado:', error);
+    return false;
+  }
+};
+
+export const trackAffiliateClick = async (affiliateCode: string) => {
+  try {
+    if (!affiliateCode) return;
+    
+    console.log('Registrando clique do afiliado:', affiliateCode);
+    
+    // Buscar o afiliado pelo código
+    const affiliateQuery = query(
+      collection(db, 'users'),
+      where('affiliateCode', '==', affiliateCode)
+    );
+    
+    const affiliateSnapshot = await getDocs(affiliateQuery);
+    
+    if (!affiliateSnapshot.empty) {
+      const affiliateDoc = affiliateSnapshot.docs[0];
+      const affiliateData = affiliateDoc.data();
+      
+      const currentStats = affiliateData.affiliateStats || {};
+      const currentClicks = currentStats.totalClicks || 0;
+      const todayClicks = currentStats.todayClicks || 0;
+      
+      // Incrementar contador de cliques
+      const updatedStats = {
+        ...currentStats,
+        totalClicks: currentClicks + 1,
+        todayClicks: todayClicks + 1,
+        lastClickDate: new Date().toISOString()
+      };
+      
+      await updateDoc(doc(db, 'users', affiliateDoc.id), {
+        affiliateStats: updatedStats
+      });
+      
+      console.log(`Clique registrado para afiliado ${affiliateCode}`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Erro ao registrar clique do afiliado:', error);
     return false;
   }
 };

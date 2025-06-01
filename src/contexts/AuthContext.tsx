@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 
@@ -9,6 +9,16 @@ interface AffiliateStats {
   activeReferrals: number;
   totalCommissions: number;
   monthlyCommissions: number;
+  totalClicks: number;
+  todayClicks: number;
+  lastClickDate?: string;
+  activeReferrals: Array<{
+    username: string;
+    date: string;
+    commission: number;
+    depositAmount: number;
+    timestamp: string;
+  }>;
   referralsList: Array<{
     username: string;
     date: string;
@@ -86,7 +96,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      // Verificar se há código de afiliado nos parâmetros da URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const referralCode = urlParams.get('ref');
+
+      // Se há código de afiliado, incrementar contador de pessoas convidadas
+      if (referralCode) {
+        try {
+          const affiliateQuery = query(
+            collection(db, 'users'),
+            where('affiliateCode', '==', referralCode)
+          );
+          
+          const affiliateSnapshot = await getDocs(affiliateQuery);
+          
+          if (!affiliateSnapshot.empty) {
+            const affiliateDoc = affiliateSnapshot.docs[0];
+            const affiliateData = affiliateDoc.data();
+            
+            const currentStats = affiliateData.affiliateStats || {};
+            const updatedStats = {
+              ...currentStats,
+              totalInvited: (currentStats.totalInvited || 0) + 1,
+              lastInviteDate: new Date().toISOString()
+            };
+            
+            await updateDoc(doc(db, 'users', affiliateDoc.id), {
+              affiliateStats: updatedStats
+            });
+            
+            console.log(`Usuário registrado via afiliado ${referralCode}`);
+          }
+        } catch (error) {
+          console.error('Erro ao processar código de afiliado:', error);
+        }
+      }
+
       const result = await createUserWithEmailAndPassword(auth, email, password);
+      const affiliateCode = `REF${username.toUpperCase()}${Date.now().toString().slice(-4)}`;
+      
       const newUserData: UserData = {
         uid: result.user.uid,
         username,
@@ -96,12 +144,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         monthlyEarnings: 0,
         miners: [],
         transactions: [],
+        affiliateCode,
         affiliateBalance: 0,
+        referredBy: referralCode || undefined,
         affiliateStats: {
           totalInvited: 0,
           activeReferrals: 0,
           totalCommissions: 0,
           monthlyCommissions: 0,
+          totalClicks: 0,
+          todayClicks: 0,
+          activeReferrals: [],
           referralsList: []
         }
       };
@@ -110,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserData(newUserData);
       toast({
         title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao MineWealth Forge!",
+        description: "Bem-vindo ao Mine Wealth!",
       });
     } catch (error: any) {
       console.error('Signup error:', error);

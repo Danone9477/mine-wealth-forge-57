@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +22,7 @@ const History = () => {
   const totalDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
   const totalWithdraws = transactions.filter(t => t.type === 'withdraw' && t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
   const pendingWithdraws = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
-  const totalTasks = transactions.filter(t => t.type === 'task').length;
+  const failedDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'failed').length;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -92,7 +91,7 @@ const History = () => {
             </span>
           </h1>
           <p className="text-gray-400 text-base sm:text-lg">
-            Acompanhe todas as suas atividades financeiras
+            Acompanhe todas as suas atividades financeiras no Mine Wealth
           </p>
         </div>
 
@@ -103,7 +102,7 @@ const History = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-400 font-medium text-xs sm:text-sm">Total Depositado</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">{totalDeposits} MT</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{totalDeposits.toFixed(2)} MT</p>
                 </div>
                 <ArrowDown className="h-6 w-6 sm:h-8 sm:w-8 text-green-400 flex-shrink-0" />
               </div>
@@ -115,7 +114,7 @@ const History = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-red-400 font-medium text-xs sm:text-sm">Total Sacado</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">{totalWithdraws} MT</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{totalWithdraws.toFixed(2)} MT</p>
                 </div>
                 <ArrowUp className="h-6 w-6 sm:h-8 sm:w-8 text-red-400 flex-shrink-0" />
               </div>
@@ -127,7 +126,7 @@ const History = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-yellow-400 font-medium text-xs sm:text-sm">Saques Pendentes</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">{pendingWithdraws} MT</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{pendingWithdraws.toFixed(2)} MT</p>
                 </div>
                 <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400 flex-shrink-0" />
               </div>
@@ -139,7 +138,7 @@ const History = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gold-400 font-medium text-xs sm:text-sm">Saldo Atual</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">{userData.balance} MT</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
                 </div>
                 <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 flex-shrink-0" />
               </div>
@@ -152,7 +151,7 @@ const History = () => {
           <CardHeader>
             <CardTitle className="text-white">Todas as Transações</CardTitle>
             <CardDescription className="text-gray-400">
-              Histórico completo das suas atividades
+              Histórico completo das suas atividades no Mine Wealth
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -205,7 +204,7 @@ const History = () => {
                           'text-blue-400'
                         }`}>
                           {transaction.type === 'withdraw' ? '-' : '+'}
-                          {transaction.amount} MT
+                          {transaction.amount.toFixed(2)} MT
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -218,10 +217,9 @@ const History = () => {
                         </TableCell>
                         <TableCell className="text-gray-400 text-xs hidden lg:table-cell">
                           <div className="max-w-[200px]">
-                            {transaction.phone && `Tel: ${transaction.phone}`}
-                            {transaction.name && ` | ${transaction.name}`}
-                            {transaction.method && ` | ${transaction.method.toUpperCase()}`}
-                            {transaction.firebase_id && ` | ID: ${transaction.firebase_id}`}
+                            {transaction.phoneNumber && `Tel: ${transaction.phoneNumber}`}
+                            {transaction.paymentMethod && ` | ${transaction.paymentMethod.toUpperCase()}`}
+                            {transaction.transactionId && ` | ID: ${transaction.transactionId}`}
                           </div>
                         </TableCell>
                       </TableRow>
