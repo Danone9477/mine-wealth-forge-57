@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { 
   Users, 
   DollarSign, 
@@ -25,58 +26,210 @@ import {
   AlertCircle,
   CheckCircle
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { collection, getDocs, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { toast } from '@/hooks/use-toast';
+import EditUserModal from './EditUserModal';
+import ProcessWithdrawalModal from './ProcessWithdrawalModal';
 
 const AdminDashboard = () => {
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [miners, setMiners] = useState([]);
   const [stats, setStats] = useState({
-    totalUsers: 15247,
-    totalDeposits: 2850000,
-    totalWithdrawals: 1200000,
-    activeMiners: 8450,
-    todayRegistrations: 127,
-    pendingWithdrawals: 45,
-    totalProfit: 850000,
+    totalUsers: 0,
+    totalDeposits: 0,
+    totalWithdrawals: 0,
+    activeMiners: 0,
+    todayRegistrations: 0,
+    pendingWithdrawals: 0,
+    totalProfit: 0,
     systemUptime: 99.9
   });
 
-  const [users, setUsers] = useState([
-    { id: 1, name: "João Silva", email: "joao@email.com", balance: 1250, status: "active", joinDate: "2024-01-15", miners: 3 },
-    { id: 2, name: "Maria Costa", email: "maria@email.com", balance: 2400, status: "active", joinDate: "2024-02-10", miners: 5 },
-    { id: 3, name: "Pedro Santos", email: "pedro@email.com", balance: 850, status: "suspended", joinDate: "2024-03-05", miners: 2 },
-    { id: 4, name: "Ana Pereira", email: "ana@email.com", balance: 3200, status: "active", joinDate: "2024-01-20", miners: 7 },
-    { id: 5, name: "Carlos Mendes", email: "carlos@email.com", balance: 1800, status: "pending", joinDate: "2024-05-12", miners: 4 }
-  ]);
-
-  const [transactions, setTransactions] = useState([
-    { id: 1, user: "João Silva", type: "deposit", amount: 500, status: "completed", date: "2024-06-01 10:30" },
-    { id: 2, user: "Maria Costa", type: "withdrawal", amount: 300, status: "pending", date: "2024-06-01 09:15" },
-    { id: 3, user: "Pedro Santos", type: "mining", amount: 45, status: "completed", date: "2024-06-01 08:45" },
-    { id: 4, user: "Ana Pereira", type: "deposit", amount: 1000, status: "completed", date: "2024-05-31 16:20" },
-    { id: 5, user: "Carlos Mendes", type: "withdrawal", amount: 150, status: "processing", date: "2024-05-31 14:10" }
-  ]);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  const loadAdminData = async () => {
+    try {
+      setLoading(true);
+      
+      // Carregar usuários
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const usersData = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        joinDate: doc.data().createdAt ? new Date(doc.data().createdAt).toLocaleDateString('pt-BR') : 'N/A'
+      }));
+      setUsers(usersData);
+
+      // Carregar transações
+      const transactionsQuery = query(
+        collection(db, 'transactions'),
+        orderBy('timestamp', 'desc')
+      );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const transactionsData = transactionsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: new Date(doc.data().timestamp).toLocaleString('pt-BR')
+      }));
+      setTransactions(transactionsData);
+
+      // Carregar mineradores (buscar em todos os usuários)
+      const allMiners = [];
+      usersData.forEach(user => {
+        if (user.miners && user.miners.length > 0) {
+          user.miners.forEach(miner => {
+            allMiners.push({
+              ...miner,
+              userId: user.id,
+              username: user.username
+            });
+          });
+        }
+      });
+      setMiners(allMiners);
+
+      // Calcular estatísticas
+      const today = new Date().toDateString();
+      const todayRegistrations = usersData.filter(user => 
+        user.createdAt && new Date(user.createdAt).toDateString() === today
+      ).length;
+
+      const totalDeposits = transactionsData
+        .filter(t => t.type === 'deposit' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalWithdrawals = transactionsData
+        .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const pendingWithdrawals = transactionsData
+        .filter(t => t.type === 'withdrawal' && t.status === 'pending').length;
+
+      const activeMiners = allMiners.filter(m => m.isActive).length;
+
+      setStats({
+        totalUsers: usersData.length,
+        totalDeposits,
+        totalWithdrawals,
+        activeMiners,
+        todayRegistrations,
+        pendingWithdrawals,
+        totalProfit: totalDeposits - totalWithdrawals,
+        systemUptime: 99.9
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar dados do admin:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados administrativos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleProcessWithdrawal = (transaction) => {
+    setSelectedTransaction(transaction);
+    setWithdrawalModalOpen(true);
+  };
+
+  const handleUserUpdate = async (userId, updatedData) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), updatedData);
+      
+      // Atualizar localmente
+      setUsers(prev => prev.map(user => 
+        user.id === userId ? { ...user, ...updatedData } : user
+      ));
+      
+      toast({
+        title: "Sucesso",
+        description: "Usuário atualizado com sucesso",
+      });
+      
+      setEditModalOpen(false);
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar usuário",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWithdrawalUpdate = async (transactionId, status, notes = '') => {
+    try {
+      await updateDoc(doc(db, 'transactions', transactionId), {
+        status,
+        notes,
+        processedAt: new Date().toISOString(),
+        processedBy: 'admin'
+      });
+      
+      // Atualizar localmente
+      setTransactions(prev => prev.map(transaction => 
+        transaction.id === transactionId 
+          ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
+          : transaction
+      ));
+      
+      toast({
+        title: "Sucesso",
+        description: `Saque ${status === 'completed' ? 'aprovado' : 'rejeitado'} com sucesso`,
+      });
+      
+      setWithdrawalModalOpen(false);
+      loadAdminData(); // Recarregar para atualizar estatísticas
+    } catch (error) {
+      console.error('Erro ao processar saque:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao processar saque",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'suspended': return 'bg-red-500/20 text-red-400 border-red-500/50';
       case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
       case 'completed': return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'processing': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+      case 'rejected': return 'bg-red-500/20 text-red-400 border-red-500/50';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type) => {
     switch (type) {
       case 'deposit': return <CreditCard className="h-4 w-4" />;
       case 'withdrawal': return <Banknote className="h-4 w-4" />;
@@ -84,6 +237,14 @@ const AdminDashboard = () => {
       default: return <DollarSign className="h-4 w-4" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black p-4 sm:p-6 flex items-center justify-center">
+        <div className="text-white text-xl">Carregando dados administrativos...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black p-4 sm:p-6">
@@ -100,9 +261,9 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300">
+              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300" onClick={loadAdminData}>
                 <Bell className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Notificações</span>
+                <span className="hidden sm:inline">Atualizar</span>
               </Button>
               <Button variant="outline" size="sm" className="border-gray-600 text-gray-300">
                 <Download className="h-4 w-4 mr-2" />
@@ -135,8 +296,8 @@ const AdminDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{(stats.totalDeposits / 1000000).toFixed(1)}M MT</div>
-              <p className="text-xs text-green-300">+12% este mês</p>
+              <div className="text-2xl font-bold text-white">{stats.totalDeposits.toFixed(0)} MT</div>
+              <p className="text-xs text-green-300">Total depositado</p>
             </CardContent>
           </Card>
 
@@ -148,8 +309,8 @@ const AdminDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.activeMiners.toLocaleString()}</div>
-              <p className="text-xs text-yellow-300">Funcionando 24/7</p>
+              <div className="text-2xl font-bold text-white">{stats.activeMiners}</div>
+              <p className="text-xs text-yellow-300">Saques pendentes: {stats.pendingWithdrawals}</p>
             </CardContent>
           </Card>
 
@@ -161,8 +322,8 @@ const AdminDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{(stats.totalProfit / 1000).toFixed(0)}K MT</div>
-              <p className="text-xs text-purple-300">+{stats.systemUptime}% uptime</p>
+              <div className="text-2xl font-bold text-white">{stats.totalProfit.toFixed(0)} MT</div>
+              <p className="text-xs text-purple-300">Depósitos - Saques</p>
             </CardContent>
           </Card>
         </div>
@@ -179,8 +340,8 @@ const AdminDashboard = () => {
             <TabsTrigger value="miners" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Mineradores
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
-              Configurações
+            <TabsTrigger value="affiliates" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
+              Afiliados
             </TabsTrigger>
           </TabsList>
 
@@ -237,32 +398,31 @@ const AdminDashboard = () => {
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-gold-400 rounded-full flex items-center justify-center text-gray-900 font-semibold text-xs">
-                                {user.name.charAt(0)}
+                                {user.username?.charAt(0) || 'U'}
                               </div>
                               <div>
-                                <div className="text-white font-medium">{user.name}</div>
+                                <div className="text-white font-medium">{user.username || 'N/A'}</div>
                                 <div className="text-gray-400 text-xs sm:hidden">{user.email}</div>
                               </div>
                             </div>
                           </td>
                           <td className="py-3 px-2 text-gray-300 hidden sm:table-cell">{user.email}</td>
-                          <td className="py-3 px-2 text-green-400 font-medium">{user.balance} MT</td>
-                          <td className="py-3 px-2 text-gray-300 hidden lg:table-cell">{user.miners}</td>
+                          <td className="py-3 px-2 text-green-400 font-medium">{user.balance || 0} MT</td>
+                          <td className="py-3 px-2 text-gray-300 hidden lg:table-cell">{user.miners?.length || 0}</td>
                           <td className="py-3 px-2">
-                            <Badge className={getStatusColor(user.status)}>
-                              {user.status}
+                            <Badge className={getStatusColor(user.status || 'active')}>
+                              {user.status || 'active'}
                             </Badge>
                           </td>
                           <td className="py-3 px-2">
                             <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-blue-400 hover:bg-blue-400/20">
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:bg-gray-400/20">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-7 w-7 p-0 text-blue-400 hover:bg-blue-400/20"
+                                onClick={() => handleEditUser(user)}
+                              >
                                 <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-400 hover:bg-red-400/20">
-                                <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
                           </td>
@@ -279,9 +439,9 @@ const AdminDashboard = () => {
           <TabsContent value="transactions" className="space-y-6">
             <Card className="bg-gray-800/50 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">Transações Recentes</CardTitle>
+                <CardTitle className="text-white">Transações</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Monitore todas as transações da plataforma
+                  Monitore e processe todas as transações
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -294,12 +454,13 @@ const AdminDashboard = () => {
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium hidden sm:table-cell">Data</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {transactions.map((transaction) => (
                         <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                          <td className="py-3 px-2 text-white">{transaction.user}</td>
+                          <td className="py-3 px-2 text-white">{transaction.username || 'N/A'}</td>
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-2">
                               {getTypeIcon(transaction.type)}
@@ -313,6 +474,18 @@ const AdminDashboard = () => {
                               {transaction.status}
                             </Badge>
                           </td>
+                          <td className="py-3 px-2">
+                            {transaction.type === 'withdrawal' && transaction.status === 'pending' && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
+                                onClick={() => handleProcessWithdrawal(transaction)}
+                              >
+                                Processar
+                              </Button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -325,117 +498,117 @@ const AdminDashboard = () => {
           {/* Miners Tab */}
           <TabsContent value="miners" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50">
-                <CardHeader>
-                  <CardTitle className="text-blue-400 flex items-center gap-2">
-                    <Pickaxe className="h-5 w-5" />
-                    Basic Miners
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-white">2,450</div>
-                    <div className="text-sm text-blue-300">Ativos agora</div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div className="bg-blue-400 h-2 rounded-full" style={{width: '85%'}}></div>
-                    </div>
-                    <div className="text-xs text-gray-400">85% capacidade</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-gold-900/30 to-gold-800/30 border-gold-700/50">
-                <CardHeader>
-                  <CardTitle className="text-gold-400 flex items-center gap-2">
-                    <Pickaxe className="h-5 w-5" />
-                    Premium Miners
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-white">3,200</div>
-                    <div className="text-sm text-gold-300">Ativos agora</div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div className="bg-gold-400 h-2 rounded-full" style={{width: '92%'}}></div>
-                    </div>
-                    <div className="text-xs text-gray-400">92% capacidade</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-red-900/30 to-red-800/30 border-red-700/50">
-                <CardHeader>
-                  <CardTitle className="text-red-400 flex items-center gap-2">
-                    <Pickaxe className="h-5 w-5" />
-                    Elite Miners
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold text-white">2,800</div>
-                    <div className="text-sm text-red-300">Ativos agora</div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div className="bg-red-400 h-2 rounded-full" style={{width: '78%'}}></div>
-                    </div>
-                    <div className="text-xs text-gray-400">78% capacidade</div>
-                  </div>
-                </CardContent>
-              </Card>
+              {['Basic', 'Premium', 'Elite'].map((type) => {
+                const typeMiners = miners.filter(m => m.type === type);
+                const activeCount = typeMiners.filter(m => m.isActive).length;
+                const totalCount = typeMiners.length;
+                const percentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
+                
+                return (
+                  <Card key={type} className={`bg-gradient-to-br ${
+                    type === 'Basic' ? 'from-blue-900/30 to-blue-800/30 border-blue-700/50' :
+                    type === 'Premium' ? 'from-gold-900/30 to-gold-800/30 border-gold-700/50' :
+                    'from-red-900/30 to-red-800/30 border-red-700/50'
+                  }`}>
+                    <CardHeader>
+                      <CardTitle className={`${
+                        type === 'Basic' ? 'text-blue-400' :
+                        type === 'Premium' ? 'text-gold-400' :
+                        'text-red-400'
+                      } flex items-center gap-2`}>
+                        <Pickaxe className="h-5 w-5" />
+                        {type} Miners
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-white">{activeCount}</div>
+                        <div className={`text-sm ${
+                          type === 'Basic' ? 'text-blue-300' :
+                          type === 'Premium' ? 'text-gold-300' :
+                          'text-red-300'
+                        }`}>Ativos de {totalCount} total</div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${
+                              type === 'Basic' ? 'bg-blue-400' :
+                              type === 'Premium' ? 'bg-gold-400' :
+                              'bg-red-400'
+                            }`}
+                            style={{width: `${percentage}%`}}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-400">{percentage}% ativo</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
 
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
+          {/* Affiliates Tab */}
+          <TabsContent value="affiliates" className="space-y-6">
             <Card className="bg-gray-800/50 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Configurações do Sistema
-                </CardTitle>
+                <CardTitle className="text-white">Sistema de Afiliados</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Configure parâmetros globais da plataforma
+                  Gerencie afiliados e suas comissões
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">Mineradores</h3>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Taxa de ROI (%)</label>
-                      <Input className="bg-gray-700 border-gray-600 text-white" defaultValue="350" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Duração padrão (dias)</label>
-                      <Input className="bg-gray-700 border-gray-600 text-white" defaultValue="30" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">Pagamentos</h3>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Taxa de saque (%)</label>
-                      <Input className="bg-gray-700 border-gray-600 text-white" defaultValue="2.5" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Valor mínimo de saque (MT)</label>
-                      <Input className="bg-gray-700 border-gray-600 text-white" defaultValue="100" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex gap-4 pt-4">
-                  <Button className="bg-gold-400 text-gray-900 hover:bg-gold-500">
-                    Salvar Alterações
-                  </Button>
-                  <Button variant="outline" className="border-gray-600 text-gray-300">
-                    Cancelar
-                  </Button>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Código</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Comissões</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Referidos</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.filter(user => user.affiliateCode).map((affiliate) => (
+                        <tr key={affiliate.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-2 text-white">{affiliate.username}</td>
+                          <td className="py-3 px-2 text-gold-400 font-medium">{affiliate.affiliateCode}</td>
+                          <td className="py-3 px-2 text-green-400">{affiliate.affiliateBalance || 0} MT</td>
+                          <td className="py-3 px-2 text-gray-300">{affiliate.affiliateStats?.totalInvited || 0}</td>
+                          <td className="py-3 px-2">
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                              Ativo
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modais */}
+      {editModalOpen && selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onUpdate={handleUserUpdate}
+        />
+      )}
+
+      {withdrawalModalOpen && selectedTransaction && (
+        <ProcessWithdrawalModal
+          transaction={selectedTransaction}
+          isOpen={withdrawalModalOpen}
+          onClose={() => setWithdrawalModalOpen(false)}
+          onUpdate={handleWithdrawalUpdate}
+        />
+      )}
     </div>
   );
 };
