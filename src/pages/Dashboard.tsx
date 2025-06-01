@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift } from 'lucide-react';
+import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift, Pickaxe, Trophy } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from '@/hooks/use-toast';
 
@@ -32,7 +32,6 @@ const Dashboard = () => {
       const lastTaskDate = userData.lastTaskDate;
       setCanCompleteTask(!lastTaskDate || lastTaskDate !== today);
 
-      // Check if can collect miner earnings
       checkMinerEarningsAvailability();
     }
   }, [userData]);
@@ -43,14 +42,12 @@ const Dashboard = () => {
     const now = new Date();
     const today = now.toDateString();
     
-    // Check if any miner has earnings to collect
     const hasEarningsToCollect = userData.miners.some(miner => {
       if (!miner.active) return false;
       
       const lastCollection = miner.lastCollection ? new Date(miner.lastCollection).toDateString() : null;
       const expiryDate = new Date(miner.expiryDate);
       
-      // Can collect if: miner is active, not expired, and hasn't collected today
       return expiryDate > now && lastCollection !== today;
     });
 
@@ -103,25 +100,22 @@ const Dashboard = () => {
       const today = now.toDateString();
       let totalEarnings = 0;
       
-      // Update miners with collection data
       const updatedMiners = userData.miners?.map(miner => {
         if (!miner.active) return miner;
         
         const lastCollection = miner.lastCollection ? new Date(miner.lastCollection).toDateString() : null;
         const expiryDate = new Date(miner.expiryDate);
         
-        // If can collect from this miner
         if (expiryDate > now && lastCollection !== today) {
           totalEarnings += miner.dailyReturn || 0;
           
-          // Update days remaining
           const daysRemaining = Math.max(0, Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
           
           return {
             ...miner,
             lastCollection: now.toISOString(),
             daysRemaining,
-            active: daysRemaining > 0 // Deactivate if expired
+            active: daysRemaining > 0
           };
         }
         
@@ -186,231 +180,292 @@ const Dashboard = () => {
     return expiryDate > new Date();
   }).length || 0;
 
+  // Calculate today's earnings from completed tasks and collections
+  const todayEarnings = userData.transactions?.filter(t => {
+    const transactionDate = new Date(t.date).toDateString();
+    const today = new Date().toDateString();
+    return transactionDate === today && (t.type === 'task' || t.type === 'mining');
+  }).reduce((sum, t) => sum + t.amount, 0) || 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            Olá, <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">{userData.username}</span>! 👋
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Bem-vindo ao seu painel de controle. Aqui você pode acompanhar seus ganhos e gerenciar seus investimentos.
-          </p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-gold-400 to-gold-600 border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-900 font-medium">Saldo Atual</p>
-                  <p className="text-2xl font-bold text-gray-900">{userData.balance.toFixed(2)} MT</p>
-                </div>
-                <Coins className="h-8 w-8 text-gray-900" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-medium">Ganhos Totais</p>
-                  <p className="text-2xl font-bold text-white">{userData.totalEarnings.toFixed(2)} MT</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-medium">Mineradores Ativos</p>
-                  <p className="text-2xl font-bold text-white">{activeMinerCount}</p>
-                </div>
-                <Zap className="h-8 w-8 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-medium">Ganho/Dia</p>
-                  <p className="text-2xl font-bold text-white">{activeMinerEarnings.toFixed(2)} MT</p>
-                </div>
-                <Clock className="h-8 w-8 text-purple-400" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Earnings Chart */}
-          <div className="lg:col-span-2">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-gold-400" />
-                  Desempenho dos Ganhos (7 dias)
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Acompanhe a evolução dos seus ganhos diários
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={earningsData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="day" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" />
-                      <Tooltip 
-                        contentStyle={{
-                          backgroundColor: '#1F2937',
-                          border: '1px solid #374151',
-                          borderRadius: '8px',
-                          color: '#F3F4F6'
-                        }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="earnings" 
-                        stroke="#FBB424" 
-                        strokeWidth={3}
-                        dot={{ fill: '#FBB424', strokeWidth: 2, r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 py-12">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Bem-vindo, <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">{userData.username}</span>! 👋
+            </h1>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              Acompanhe seus investimentos, mineradores ativos e ganhos em tempo real. Sua jornada para a liberdade financeira começa aqui.
+            </p>
           </div>
+        </div>
+      </div>
 
-          {/* Daily Activities */}
-          <div className="space-y-6">
-            {/* Miner Earnings Collection */}
-            {canCollectMinerEarnings && (
-              <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Gift className="h-5 w-5 text-gold-400" />
-                    Coletar Ganhos dos Mineradores
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Seus mineradores geraram {activeMinerEarnings} MT hoje!
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    onClick={collectMinerEarnings}
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 font-semibold"
-                  >
-                    {loading ? 'Coletando...' : `Coletar ${activeMinerEarnings} MT`}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Main Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Saldo Atual */}
+          <Card className="bg-gradient-to-br from-gold-500/20 to-gold-600/20 border-gold-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gold-200 font-medium mb-1">Saldo Atual</p>
+                  <p className="text-3xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
+                </div>
+                <Coins className="h-12 w-12 text-gold-400" />
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Daily Task */}
-            <Card className="bg-gray-800 border-gray-700">
+          {/* Ganhos do Dia */}
+          <Card className="bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-200 font-medium mb-1">Ganhos do Dia</p>
+                  <p className="text-3xl font-bold text-white">{todayEarnings.toFixed(2)} MT</p>
+                </div>
+                <TrendingUp className="h-12 w-12 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mineradores Ativos */}
+          <Card className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border-blue-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-200 font-medium mb-1">Mineradores Ativos</p>
+                  <p className="text-3xl font-bold text-white">{activeMinerCount}</p>
+                </div>
+                <Pickaxe className="h-12 w-12 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Total de Lucros */}
+          <Card className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border-purple-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200 font-medium mb-1">Total de Lucros</p>
+                  <p className="text-3xl font-bold text-white">{userData.totalEarnings.toFixed(2)} MT</p>
+                </div>
+                <Trophy className="h-12 w-12 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Performance Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* Daily Performance Chart */}
+          <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <TrendingUp className="h-6 w-6 text-gold-400" />
+                Performance de Ganhos (7 dias)
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Acompanhe a evolução dos seus ganhos diários
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={earningsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="day" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: '#1F2937',
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="earnings" 
+                      stroke="#FBB424" 
+                      strokeWidth={3}
+                      dot={{ fill: '#FBB424', strokeWidth: 2, r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Zap className="h-6 w-6 text-gold-400" />
+                Estatísticas Rápidas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                  <p className="text-gray-400 text-sm mb-1">Ganho Diário</p>
+                  <p className="text-2xl font-bold text-green-400">{activeMinerEarnings.toFixed(0)} MT</p>
+                </div>
+                <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                  <p className="text-gray-400 text-sm mb-1">Ganho Mensal</p>
+                  <p className="text-2xl font-bold text-blue-400">{(activeMinerEarnings * 30).toFixed(0)} MT</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">Meta Mensal</span>
+                    <span className="text-gray-400">{Math.min(100, (userData.totalEarnings / 10000 * 100)).toFixed(1)}%</span>
+                  </div>
+                  <Progress value={Math.min(100, (userData.totalEarnings / 10000 * 100))} className="h-3" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xl font-bold text-gold-400">{userData.transactions?.length || 0}</p>
+                    <p className="text-xs text-gray-400">Transações</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-blue-400">{(userData.totalEarnings / Math.max(1, userData.balance) * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-gray-400">ROI Total</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-purple-400">{Math.floor((Date.now() - Date.parse('2024-01-01')) / (1000 * 60 * 60 * 24))}</p>
+                    <p className="text-xs text-gray-400">Dias Ativo</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          {/* Miner Earnings Collection */}
+          {canCollectMinerEarnings && (
+            <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-600/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-gold-400" />
-                  Tarefa Diária
+                  <Gift className="h-6 w-6 text-gold-400" />
+                  Coletar Ganhos
                 </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Complete sua tarefa diária e ganhe 25 MT + bônus dos mineradores
+                <CardDescription className="text-gold-200">
+                  Seus mineradores geraram {activeMinerEarnings} MT hoje!
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white">Verificar investimentos</span>
-                    {!canCompleteTask ? (
-                      <CheckCircle className="h-5 w-5 text-green-400" />
-                    ) : (
-                      <Button 
-                        onClick={completeTask}
-                        size="sm"
-                        className="bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700"
-                      >
-                        Completar
-                      </Button>
-                    )}
-                  </div>
-                  <Progress value={canCompleteTask ? 0 : 100} className="h-2" />
-                  <p className="text-sm text-gray-400">
-                    {canCompleteTask ? 
-                      `Ganhe ${25 + activeMinerEarnings} MT hoje!` : 
-                      'Tarefa concluída hoje!'}
-                  </p>
-                </div>
+                <Button 
+                  onClick={collectMinerEarnings}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold h-12"
+                >
+                  {loading ? 'Coletando...' : `Coletar ${activeMinerEarnings} MT`}
+                </Button>
               </CardContent>
             </Card>
+          )}
 
-            {/* Active Miners */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-gold-400" />
-                  Mineradores Ativos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userData.miners?.filter(m => m.active && new Date(m.expiryDate) > new Date()).length ? (
-                  <div className="space-y-3">
-                    {userData.miners.filter(m => m.active && new Date(m.expiryDate) > new Date()).map((miner, index) => {
-                      const daysLeft = Math.max(0, Math.floor((new Date(miner.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                      
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                          <div>
-                            <p className="text-white font-medium">{miner.name}</p>
-                            <p className="text-sm text-gray-400">{miner.dailyReturn} MT/dia • {daysLeft} dias restantes</p>
-                          </div>
-                          <Badge className="bg-green-600 text-white">Ativo</Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Zap className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 mb-4">Nenhum minerador ativo</p>
-                    <Button asChild className="bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700">
-                      <a href="/miners">Comprar Minerador</a>
+          {/* Daily Task */}
+          <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-600/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Calendar className="h-6 w-6 text-green-400" />
+                Tarefa Diária
+              </CardTitle>
+              <CardDescription className="text-green-200">
+                Complete e ganhe 25 MT + bônus dos mineradores
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-white">Verificar investimentos</span>
+                  {!canCompleteTask ? (
+                    <CheckCircle className="h-6 w-6 text-green-400" />
+                  ) : (
+                    <Button 
+                      onClick={completeTask}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Completar
                     </Button>
+                  )}
+                </div>
+                <Progress value={canCompleteTask ? 0 : 100} className="h-2" />
+                <p className="text-sm text-green-200">
+                  {canCompleteTask ? 
+                    `Ganhe ${25 + activeMinerEarnings} MT hoje!` : 
+                    'Tarefa concluída hoje!'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Miners Summary */}
+          <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-600/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Pickaxe className="h-6 w-6 text-blue-400" />
+                Resumo dos Mineradores
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeMinerCount > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ativos</span>
+                    <span className="text-white font-bold">{activeMinerCount}</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ganho Diário</span>
+                    <span className="text-green-400 font-bold">{activeMinerEarnings} MT</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ganho Mensal</span>
+                    <span className="text-gold-400 font-bold">{(activeMinerEarnings * 30).toFixed(0)} MT</span>
+                  </div>
+                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
+                    <a href="/miners">Ver Detalhes</a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Pickaxe className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">Nenhum minerador ativo</p>
+                  <Button asChild className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700">
+                    <a href="/miners">Comprar Minerador</a>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Button asChild className="bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 h-16">
-              <a href="/miners">Comprar Minerador</a>
-            </Button>
-            <Button asChild variant="outline" className="border-green-400 text-green-400 hover:bg-green-400 hover:text-gray-900 h-16">
-              <a href="/deposit">Fazer Depósito</a>
-            </Button>
-            <Button asChild variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-gray-900 h-16">
-              <a href="/withdraw">Sacar Fundos</a>
-            </Button>
-            <Button asChild variant="outline" className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-gray-900 h-16">
-              <a href="/history">Ver Histórico</a>
-            </Button>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Button asChild className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 h-16 text-lg font-semibold">
+            <a href="/miners">🏗️ Comprar Minerador</a>
+          </Button>
+          <Button asChild variant="outline" className="border-green-500 text-green-400 hover:bg-green-500 hover:text-black h-16 text-lg font-semibold">
+            <a href="/deposit">💰 Fazer Depósito</a>
+          </Button>
+          <Button asChild variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-black h-16 text-lg font-semibold">
+            <a href="/withdraw">💸 Sacar Fundos</a>
+          </Button>
+          <Button asChild variant="outline" className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-black h-16 text-lg font-semibold">
+            <a href="/history">📊 Ver Histórico</a>
+          </Button>
         </div>
       </div>
     </div>
