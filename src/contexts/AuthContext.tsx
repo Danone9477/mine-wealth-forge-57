@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -30,6 +29,7 @@ interface UserData {
   affiliateBalance?: number;
   affiliateStats?: AffiliateStats;
   referredBy?: string;
+  canWithdraw?: boolean;
 }
 
 interface AuthContextType {
