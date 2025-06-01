@@ -13,6 +13,9 @@ export interface ActiveMiner {
   userId: string;
   price: number;
   lastProcessed?: string;
+  active: boolean;
+  lastCollection?: string;
+  daysRemaining?: number;
 }
 
 export const processDailyMinerRewards = async () => {
@@ -30,7 +33,7 @@ export const processDailyMinerRewards = async () => {
       let dailyEarnings = 0;
       
       const updatedMiners = miners.map((miner: ActiveMiner) => {
-        if (!miner.isActive) return miner;
+        if (!miner.isActive && !miner.active) return miner;
         
         const expiryDate = new Date(miner.expiryDate);
         const lastProcessed = new Date(miner.lastProcessed || miner.purchaseDate);
@@ -38,7 +41,7 @@ export const processDailyMinerRewards = async () => {
         // Verificar se o minerador expirou
         if (today >= expiryDate) {
           hasChanges = true;
-          return { ...miner, isActive: false };
+          return { ...miner, isActive: false, active: false };
         }
         
         // Verificar se já foi processado hoje
@@ -53,7 +56,9 @@ export const processDailyMinerRewards = async () => {
         return {
           ...miner,
           totalEarned: (miner.totalEarned || 0) + miner.dailyReturn,
-          lastProcessed: today.toISOString()
+          lastProcessed: today.toISOString(),
+          active: true,
+          isActive: true
         };
       });
       
@@ -90,14 +95,31 @@ export const addMinerToUser = async (userId: string, miner: any) => {
       expiryDate: expiryDate.toISOString(),
       totalEarned: 0,
       isActive: true,
+      active: true,
       userId,
       price: miner.price,
-      lastProcessed: purchaseDate.toISOString()
+      lastProcessed: purchaseDate.toISOString(),
+      lastCollection: null,
+      daysRemaining: 30
     };
     
     return activeMiner;
   } catch (error) {
     console.error('Erro ao adicionar minerador:', error);
+    throw error;
+  }
+};
+
+// Função para liberar saques automaticamente ao comprar minerador
+export const unlockWithdrawalsForUser = async (userId: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      canWithdraw: true
+    });
+    console.log(`Saques liberados automaticamente para usuário ${userId}`);
+  } catch (error) {
+    console.error('Erro ao liberar saques:', error);
     throw error;
   }
 };
