@@ -1,4 +1,3 @@
-
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -40,54 +39,81 @@ export const processPayment = async (
         carteira: WALLET_ID,
         numero: phone,
         "quem comprou": username,
-        valor: amount
+        valor: amount.toString() // Converter para string conforme a API requer
       })
     });
 
-    const result = await response.text();
-    
-    console.log('MozPayment Response:', {
-      status: response.status,
-      result
-    });
+    console.log('MozPayment Response Status:', response.status);
 
-    // Análise mais detalhada da resposta
-    let success = false;
-    let message = result;
+    if (method === 'mpesa') {
+      // Processar resposta M-Pesa baseada no status HTTP
+      let success = false;
+      let message = '';
 
-    if (response.status === 200) {
-      // Verificar conteúdo da resposta para sucesso
-      const lowerResult = result.toLowerCase();
-      if (lowerResult.includes('success = yes') || 
-          lowerResult.includes('pagamento aprovado') ||
-          lowerResult.includes('transação aprovada') ||
-          lowerResult.includes('approved')) {
-        success = true;
-        message = 'Pagamento aprovado com sucesso';
-      } else if (lowerResult.includes('saldo insuficiente')) {
-        message = 'Saldo insuficiente na carteira';
-      } else if (lowerResult.includes('pin errado') || lowerResult.includes('pin incorreto')) {
-        message = 'PIN incorreto';
-      } else if (lowerResult.includes('numero invalido')) {
-        message = 'Número de telefone inválido';
-      } else {
-        message = 'Erro na transação - verifique os dados';
+      switch (response.status) {
+        case 200:
+          success = true;
+          message = 'Pagamento realizado com sucesso';
+          break;
+        case 201:
+          message = 'Erro na transação';
+          break;
+        case 422:
+          message = 'Saldo insuficiente';
+          break;
+        case 400:
+          message = 'PIN errado ou dados inválidos';
+          break;
+        default:
+          message = `Erro desconhecido: ${response.status}`;
       }
-    } else if (response.status === 201) {
-      message = 'Erro na transação';
-    } else if (response.status === 422) {
-      message = 'Saldo insuficiente';
-    } else if (response.status === 400) {
-      message = 'PIN errado ou dados inválidos';
-    } else {
-      message = 'Erro de comunicação com MozPayment';
+
+      console.log('M-Pesa Result:', { success, message, status: response.status });
+
+      return {
+        success,
+        message,
+        transactionId: success ? Date.now().toString() : undefined,
+        rawResponse: `Status: ${response.status}`
+      };
+
+    } else if (method === 'emola') {
+      // Processar resposta e-Mola baseada no JSON
+      try {
+        const result = await response.json();
+        console.log('e-Mola JSON Response:', result);
+
+        const success = result.success === 'yes';
+        const message = success ? 'Pagamento aprovado' : 'Pagamento reprovado';
+
+        return {
+          success,
+          message,
+          transactionId: success ? Date.now().toString() : undefined,
+          rawResponse: JSON.stringify(result)
+        };
+      } catch (jsonError) {
+        // Se não conseguir fazer parse do JSON, tentar como texto
+        const textResult = await response.text();
+        console.log('e-Mola Text Response:', textResult);
+
+        const success = textResult.toLowerCase().includes('success = yes') || 
+                       textResult.toLowerCase().includes('pagamento aprovado');
+        const message = success ? 'Pagamento aprovado' : 'Pagamento reprovado';
+
+        return {
+          success,
+          message,
+          transactionId: success ? Date.now().toString() : undefined,
+          rawResponse: textResult
+        };
+      }
     }
 
     return {
-      success,
-      message,
-      transactionId: success ? Date.now().toString() : undefined,
-      rawResponse: result
+      success: false,
+      message: 'Método de pagamento não suportado',
+      rawResponse: 'Invalid method'
     };
 
   } catch (error) {

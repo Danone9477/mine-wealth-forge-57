@@ -1,4 +1,5 @@
 
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { Smartphone, Wallet, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Smartphone, Wallet, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { processPayment, processAffiliateCommission } from '@/services/paymentService';
@@ -54,7 +55,20 @@ const Deposit = () => {
 
     setLoading(true);
 
+    // Mostrar toast de processamento
+    toast({
+      title: "Processando pagamento...",
+      description: `Conectando com ${paymentMethods.find(m => m.id === paymentMethod)?.name}`,
+    });
+
     try {
+      console.log('Iniciando depósito:', {
+        method: paymentMethod,
+        phone: phoneNumber,
+        amount: depositAmount,
+        username: userData.username
+      });
+
       const paymentResult = await processPayment(
         paymentMethod as 'emola' | 'mpesa',
         phoneNumber,
@@ -62,11 +76,14 @@ const Deposit = () => {
         userData.username
       );
 
-      console.log('Resultado do pagamento:', paymentResult);
+      console.log('Resultado completo do pagamento:', paymentResult);
 
       if (paymentResult.success) {
         // Processar comissão de afiliado se aplicável
-        await processAffiliateCommission(depositAmount, userData.uid, userData);
+        if (userData.referredBy) {
+          console.log('Processando comissão para:', userData.referredBy);
+          await processAffiliateCommission(depositAmount, userData.uid, userData);
+        }
 
         const transaction = {
           id: Date.now().toString(),
@@ -80,32 +97,42 @@ const Deposit = () => {
           transactionId: paymentResult.transactionId
         };
 
+        const newBalance = userData.balance + depositAmount;
+        console.log('Atualizando saldo:', { oldBalance: userData.balance, newBalance, depositAmount });
+
         await updateUserData({
-          balance: userData.balance + depositAmount,
+          balance: newBalance,
           transactions: [...(userData.transactions || []), transaction]
         });
 
         toast({
           title: "Depósito realizado com sucesso! 🎉",
-          description: `${depositAmount} MT foram adicionados à sua conta`,
+          description: `${depositAmount} MT foram adicionados à sua conta. Novo saldo: ${newBalance.toFixed(2)} MT`,
         });
 
+        // Limpar formulário
         setAmount('');
         setPhoneNumber('');
         setPaymentMethod('');
       } else {
         toast({
-          title: "Erro no pagamento",
+          title: "Pagamento não aprovado",
           description: paymentResult.message,
           variant: "destructive",
+        });
+        
+        // Log detalhado para debug
+        console.error('Pagamento falhou:', {
+          message: paymentResult.message,
+          rawResponse: paymentResult.rawResponse
         });
       }
 
     } catch (error) {
-      console.error('Erro no processamento do depósito:', error);
+      console.error('Erro crítico no processamento do depósito:', error);
       toast({
-        title: "Erro no depósito",
-        description: "Erro ao processar o depósito. Tente novamente.",
+        title: "Erro no sistema",
+        description: "Erro interno no processamento. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -117,7 +144,7 @@ const Deposit = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gold-400 mx-auto mb-4"></div>
+          <Loader2 className="animate-spin h-32 w-32 text-gold-400 mx-auto mb-4" />
           <p className="text-gray-400">Carregando...</p>
         </div>
       </div>
@@ -165,7 +192,7 @@ const Deposit = () => {
             <CardHeader>
               <CardTitle className="text-white text-xl sm:text-2xl">Informações do Depósito</CardTitle>
               <CardDescription className="text-gray-300">
-                Preencha os dados para realizar seu depósito
+                Preencha os dados para realizar seu depósito via MozPayment
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -225,8 +252,8 @@ const Deposit = () => {
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Processando...
+                    <Loader2 className="animate-spin h-5 w-5" />
+                    Processando pagamento...
                   </div>
                 ) : (
                   `Depositar ${amount ? parseFloat(amount).toFixed(2) : '0.00'} MT`
@@ -263,78 +290,53 @@ const Deposit = () => {
               </CardContent>
             </Card>
 
-            {/* Security Info */}
+            {/* Processing Instructions */}
             <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <CheckCircle className="h-6 w-6 text-blue-400" />
-                  Segurança Garantida
+                  <Clock className="h-6 w-6 text-blue-400" />
+                  Como Funciona
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Transações protegidas por MozPayment</span>
+                <div className="flex items-start gap-3">
+                  <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
+                  <span className="text-gray-300 text-sm">Preencha os dados do depósito</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Processamento em tempo real</span>
+                <div className="flex items-start gap-3">
+                  <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                  <span className="text-gray-300 text-sm">Confirme o pagamento no seu telemóvel</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Suporte 24/7 disponível</span>
+                <div className="flex items-start gap-3">
+                  <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                  <span className="text-gray-300 text-sm">Digite o PIN quando solicitado</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                  <span className="text-gray-300 text-sm">Sem taxas ocultas</span>
+                <div className="flex items-start gap-3">
+                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">✓</div>
+                  <span className="text-gray-300 text-sm">Saldo creditado automaticamente</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Processing Time */}
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Clock className="h-6 w-6 text-gold-400" />
-                  Tempo de Processamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">M-Pesa</span>
-                    <Badge className="bg-green-600 text-white">1-3 min</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">e-Mola</span>
-                    <Badge className="bg-green-600 text-white">Instantâneo</Badge>
+            {/* Important Notice */}
+            <Card className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border-yellow-700/50 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-yellow-400 font-semibold mb-2">Informações Importantes</h3>
+                    <ul className="text-gray-300 space-y-1 text-sm">
+                      <li>• Valor mínimo: 100 MT</li>
+                      <li>• Processamento via MozPayment</li>
+                      <li>• Certifique-se que tem saldo suficiente</li>
+                      <li>• Digite o PIN correto quando solicitado</li>
+                      <li>• Suporte: contato@alphatraders.co.mz</li>
+                    </ul>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        {/* Important Notice */}
-        <div className="mt-8">
-          <Card className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border-yellow-700/50 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <AlertCircle className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-yellow-400 font-semibold mb-2">Informações Importantes</h3>
-                  <ul className="text-gray-300 space-y-1 text-sm">
-                    <li>• Valor mínimo de depósito: 100 MT</li>
-                    <li>• Pagamentos processados via MozPayment</li>
-                    <li>• Certifique-se que tem saldo suficiente na carteira</li>
-                    <li>• Digite o PIN correto quando solicitado</li>
-                    <li>• Verifique se o número inserido está correto</li>
-                    <li>• Em caso de problemas, contacte o suporte</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
@@ -342,3 +344,4 @@ const Deposit = () => {
 };
 
 export default Deposit;
+
