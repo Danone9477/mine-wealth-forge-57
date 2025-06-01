@@ -12,6 +12,7 @@ export interface ActiveMiner {
   isActive: boolean;
   userId: string;
   price: number;
+  lastProcessed?: string;
 }
 
 export const processDailyMinerRewards = async () => {
