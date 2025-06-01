@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Phone, MapPin, CreditCard } from "lucide-react";
 
 interface ProcessWithdrawalModalProps {
   transaction: any;
@@ -27,55 +27,107 @@ const ProcessWithdrawalModal = ({ transaction, isOpen, onClose, onUpdate }: Proc
     }
   };
 
+  const isAffiliate = transaction.source === 'affiliate';
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-md">
+      <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-gold-400">Processar Saque</DialogTitle>
+          <DialogTitle className="text-gold-400 flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Processar Saque {isAffiliate ? 'de Afiliado' : 'de Usuário'}
+          </DialogTitle>
           <DialogDescription className="text-gray-400">
-            Aprove ou rejeite o saque do usuário
+            Marque como pago ou rejeite o saque
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           {/* Detalhes da transação */}
-          <div className="bg-gray-700/50 p-4 rounded-lg space-y-2">
-            <div className="flex justify-between">
+          <div className="bg-gray-700/50 p-4 rounded-lg space-y-3">
+            <div className="flex justify-between items-center">
               <span className="text-gray-400">Usuário:</span>
-              <span className="text-white font-medium">{transaction.username}</span>
+              <span className={`font-medium ${isAffiliate ? 'text-gold-400' : 'text-white'}`}>
+                {transaction.username}
+              </span>
             </div>
-            <div className="flex justify-between">
+            
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Email:</span>
+              <span className="text-white text-sm">{transaction.email}</span>
+            </div>
+            
+            <div className="flex justify-between items-center">
               <span className="text-gray-400">Valor:</span>
-              <span className="text-gold-400 font-bold">{transaction.amount} MT</span>
+              <span className="text-gold-400 font-bold text-lg">{transaction.amount} MT</span>
             </div>
-            <div className="flex justify-between">
+            
+            <div className="flex justify-between items-center">
               <span className="text-gray-400">Método:</span>
               <span className="text-white">{transaction.method || 'N/A'}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Telefone:</span>
-              <span className="text-white">{transaction.phone || 'N/A'}</span>
+            
+            {/* Dados bancários/contato */}
+            <div className="border-t border-gray-600 pt-3 space-y-2">
+              <h4 className="text-gray-300 font-medium">Dados para Pagamento:</h4>
+              
+              {transaction.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-green-400" />
+                  <span className="text-green-400">{transaction.phone}</span>
+                </div>
+              )}
+              
+              {transaction.pixKey && (
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-blue-400" />
+                  <div>
+                    <span className="text-blue-400">PIX: </span>
+                    <span className="text-white font-mono text-sm">{transaction.pixKey}</span>
+                  </div>
+                </div>
+              )}
+              
+              {transaction.address && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-purple-400 mt-0.5" />
+                  <div>
+                    <span className="text-purple-400">Endereço: </span>
+                    <span className="text-white text-sm">{transaction.address}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between">
+            
+            <div className="flex justify-between items-center">
               <span className="text-gray-400">Data:</span>
-              <span className="text-white">{transaction.date}</span>
+              <span className="text-white text-sm">{transaction.date}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Status:</span>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Status Atual:</span>
               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/50">
-                {transaction.status}
+                {transaction.status === 'pending' ? 'Pendente' : transaction.status}
               </Badge>
             </div>
+            
+            {isAffiliate && (
+              <div className="bg-gold-400/10 border border-gold-400/20 rounded p-2">
+                <span className="text-gold-400 text-xs font-medium">
+                  💰 Este é um saque de comissões de afiliado
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Notas */}
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-gray-300">Notas (opcional)</Label>
+            <Label htmlFor="notes" className="text-gray-300">Observações (opcional)</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Adicione observações sobre o processamento..."
+              placeholder="Adicione observações sobre o processamento (ex: comprovante enviado, dados incorretos, etc.)"
               className="bg-gray-700 border-gray-600 text-white min-h-[80px]"
             />
           </div>
@@ -88,7 +140,7 @@ const ProcessWithdrawalModal = ({ transaction, isOpen, onClose, onUpdate }: Proc
               className="bg-green-600 hover:bg-green-700 text-white flex-1 flex items-center gap-2"
             >
               <CheckCircle className="h-4 w-4" />
-              {processing ? 'Processando...' : 'Aprovar'}
+              {processing ? 'Processando...' : 'Marcar como Pago'}
             </Button>
             <Button
               onClick={() => handleProcess('rejected')}

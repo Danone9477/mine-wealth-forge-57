@@ -26,7 +26,8 @@ import {
   CheckCircle,
   Clock,
   Phone,
-  MapPin
+  MapPin,
+  Star
 } from "lucide-react";
 import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -494,9 +495,12 @@ const AdminDashboard = () => {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gray-800 border-gray-700">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 bg-gray-800 border-gray-700">
             <TabsTrigger value="users" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Usuários
+            </TabsTrigger>
+            <TabsTrigger value="affiliates" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
+              Afiliados
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Transações
@@ -554,17 +558,19 @@ const AdminDashboard = () => {
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium hidden sm:table-cell">Email</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Saldo</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Saldo Afiliado</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Mineradores</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data Registro</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredUsers.map((user) => (
+                      {filteredUsers.filter(user => !user.affiliateCode).map((user) => (
                         <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-gold-400 rounded-full flex items-center justify-center text-gray-900 font-semibold text-xs">
+                              <div className="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-xs">
                                 {user.username?.charAt(0) || 'U'}
                               </div>
                               <div>
@@ -574,8 +580,10 @@ const AdminDashboard = () => {
                             </div>
                           </td>
                           <td className="py-3 px-2 text-gray-300 hidden sm:table-cell">{user.email}</td>
-                          <td className="py-3 px-2 text-green-400 font-medium">{user.balance || 0} MT</td>
+                          <td className="py-3 px-2 text-green-400 font-medium">{(user.balance || 0).toFixed(2)} MT</td>
+                          <td className="py-3 px-2 text-gold-400 font-medium">{(user.affiliateBalance || 0).toFixed(2)} MT</td>
                           <td className="py-3 px-2 text-gray-300 hidden lg:table-cell">{user.miners?.length || 0}</td>
+                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{user.joinDate}</td>
                           <td className="py-3 px-2">
                             <Badge className={getStatusColor(user.status || 'active')}>
                               {user.status || 'active'}
@@ -588,6 +596,88 @@ const AdminDashboard = () => {
                                 variant="ghost" 
                                 className="h-7 w-7 p-0 text-blue-400 hover:bg-blue-400/20"
                                 onClick={() => handleEditUser(user)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Affiliates Tab */}
+          <TabsContent value="affiliates" className="space-y-6">
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Star className="h-5 w-5 text-gold-400" />
+                      Gerenciamento de Afiliados
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Visualize e gerencie todos os afiliados da plataforma
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden sm:table-cell">Email</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Código</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Saldo Geral</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Comissões</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Referidos</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data Registro</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.filter(user => user.affiliateCode).map((affiliate) => (
+                        <tr key={affiliate.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-gold-400 rounded-full flex items-center justify-center text-gray-900 font-semibold text-xs">
+                                {affiliate.username?.charAt(0) || 'A'}
+                              </div>
+                              <div>
+                                <div className="text-gold-400 font-medium">{affiliate.username || 'N/A'}</div>
+                                <div className="text-gray-400 text-xs sm:hidden">{affiliate.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-gray-300 hidden sm:table-cell">{affiliate.email}</td>
+                          <td className="py-3 px-2">
+                            <span className="bg-gold-400/20 text-gold-400 px-2 py-1 rounded text-xs font-mono">
+                              {affiliate.affiliateCode}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-green-400 font-medium">{(affiliate.balance || 0).toFixed(2)} MT</td>
+                          <td className="py-3 px-2 text-gold-400 font-medium">{(affiliate.affiliateBalance || 0).toFixed(2)} MT</td>
+                          <td className="py-3 px-2 text-gray-300 hidden lg:table-cell">{affiliate.affiliateStats?.totalInvited || 0}</td>
+                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{affiliate.joinDate}</td>
+                          <td className="py-3 px-2">
+                            <Badge className="bg-gold-500/20 text-gold-400 border-gold-500/50">
+                              Afiliado Ativo
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex gap-1">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-7 w-7 p-0 text-gold-400 hover:bg-gold-400/20"
+                                onClick={() => handleEditUser(affiliate)}
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -669,7 +759,7 @@ const AdminDashboard = () => {
                   >
                     <option value="all">Todos ({withdrawals.length})</option>
                     <option value="pending">Pendente ({withdrawals.filter(w => w.status === 'pending').length})</option>
-                    <option value="completed">Aprovado ({withdrawals.filter(w => w.status === 'completed').length})</option>
+                    <option value="completed">Pago ({withdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">Rejeitado ({withdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
                 </div>
@@ -685,7 +775,7 @@ const AdminDashboard = () => {
                       <thead>
                         <tr className="border-b border-gray-700">
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
-                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Dados Bancários</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
@@ -703,9 +793,21 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                             <td className="py-3 px-2">
-                              <div className="flex items-center gap-1 text-gray-300">
-                                <Phone className="h-3 w-3" />
-                                <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-gray-300">
+                                  <Phone className="h-3 w-3" />
+                                  <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                                </div>
+                                {withdrawal.pixKey && (
+                                  <div className="text-xs text-green-400">
+                                    PIX: {withdrawal.pixKey}
+                                  </div>
+                                )}
+                                {withdrawal.address && (
+                                  <div className="text-xs text-blue-400">
+                                    Endereço: {withdrawal.address}
+                                  </div>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
@@ -713,7 +815,9 @@ const AdminDashboard = () => {
                             <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
                             <td className="py-3 px-2">
                               <Badge className={getStatusColor(withdrawal.status)}>
-                                {withdrawal.status}
+                                {withdrawal.status === 'completed' ? 'Pago' : 
+                                 withdrawal.status === 'rejected' ? 'Rejeitado' : 
+                                 'Pendente'}
                               </Badge>
                             </td>
                             <td className="py-3 px-2">
@@ -725,7 +829,7 @@ const AdminDashboard = () => {
                                       variant="ghost" 
                                       className="h-7 px-2 text-green-400 hover:bg-green-400/20"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
-                                      title="Aprovar saque"
+                                      title="Marcar como pago"
                                     >
                                       <CheckCircle className="h-3 w-3" />
                                     </Button>
@@ -767,7 +871,10 @@ const AdminDashboard = () => {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <CardTitle className="text-white">Saques de Afiliados</CardTitle>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Star className="h-5 w-5 text-gold-400" />
+                      Saques de Afiliados
+                    </CardTitle>
                     <CardDescription className="text-gray-400">
                       Processe saques das comissões de afiliados ({filteredAffiliateWithdrawals.length} total)
                     </CardDescription>
@@ -779,7 +886,7 @@ const AdminDashboard = () => {
                   >
                     <option value="all">Todos ({affiliateWithdrawals.length})</option>
                     <option value="pending">Pendente ({affiliateWithdrawals.filter(w => w.status === 'pending').length})</option>
-                    <option value="completed">Aprovado ({affiliateWithdrawals.filter(w => w.status === 'completed').length})</option>
+                    <option value="completed">Pago ({affiliateWithdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">Rejeitado ({affiliateWithdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
                 </div>
@@ -795,7 +902,7 @@ const AdminDashboard = () => {
                       <thead>
                         <tr className="border-b border-gray-700">
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
-                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Dados Bancários</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
                           <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
@@ -813,9 +920,21 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                             <td className="py-3 px-2">
-                              <div className="flex items-center gap-1 text-gray-300">
-                                <Phone className="h-3 w-3" />
-                                <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-gray-300">
+                                  <Phone className="h-3 w-3" />
+                                  <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                                </div>
+                                {withdrawal.pixKey && (
+                                  <div className="text-xs text-green-400">
+                                    PIX: {withdrawal.pixKey}
+                                  </div>
+                                )}
+                                {withdrawal.address && (
+                                  <div className="text-xs text-blue-400">
+                                    Endereço: {withdrawal.address}
+                                  </div>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
@@ -823,7 +942,9 @@ const AdminDashboard = () => {
                             <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
                             <td className="py-3 px-2">
                               <Badge className={getStatusColor(withdrawal.status)}>
-                                {withdrawal.status}
+                                {withdrawal.status === 'completed' ? 'Pago' : 
+                                 withdrawal.status === 'rejected' ? 'Rejeitado' : 
+                                 'Pendente'}
                               </Badge>
                             </td>
                             <td className="py-3 px-2">
@@ -835,7 +956,7 @@ const AdminDashboard = () => {
                                       variant="ghost" 
                                       className="h-7 px-2 text-green-400 hover:bg-green-400/20"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
-                                      title="Aprovar saque"
+                                      title="Marcar como pago"
                                     >
                                       <CheckCircle className="h-3 w-3" />
                                     </Button>
@@ -921,48 +1042,6 @@ const AdminDashboard = () => {
                 );
               })}
             </div>
-          </TabsContent>
-
-          {/* Affiliates Tab */}
-          <TabsContent value="affiliates" className="space-y-6">
-            <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Sistema de Afiliados</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Gerencie afiliados e suas comissões
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-700">
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Código</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Comissões</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Referidos</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.filter(user => user.affiliateCode).map((affiliate) => (
-                        <tr key={affiliate.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                          <td className="py-3 px-2 text-white">{affiliate.username}</td>
-                          <td className="py-3 px-2 text-gold-400 font-medium">{affiliate.affiliateCode}</td>
-                          <td className="py-3 px-2 text-green-400">{affiliate.affiliateBalance || 0} MT</td>
-                          <td className="py-3 px-2 text-gray-300">{affiliate.affiliateStats?.totalInvited || 0}</td>
-                          <td className="py-3 px-2">
-                            <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
-                              Ativo
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
