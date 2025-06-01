@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +26,9 @@ const Navigation = () => {
   const [adminClickCount, setAdminClickCount] = useState(0);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminKey, setAdminKey] = useState('');
+  const [pickaxeClickCount, setPickaxeClickCount] = useState(0);
+  const [showPickaxePrompt, setShowPickaxePrompt] = useState(false);
+  const [pickaxeKey, setPickaxeKey] = useState('');
 
   // Reset admin click count after 5 seconds of inactivity
   useEffect(() => {
@@ -37,6 +39,16 @@ const Navigation = () => {
       return () => clearTimeout(timer);
     }
   }, [adminClickCount]);
+
+  // Reset pickaxe click count after 3 seconds of inactivity
+  useEffect(() => {
+    if (pickaxeClickCount > 0) {
+      const timer = setTimeout(() => {
+        setPickaxeClickCount(0);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [pickaxeClickCount]);
 
   const handleAffiliatesClick = () => {
     setAdminClickCount(prev => prev + 1);
@@ -50,6 +62,16 @@ const Navigation = () => {
     }
   };
 
+  const handlePickaxeClick = () => {
+    setPickaxeClickCount(prev => prev + 1);
+    
+    // If clicked 5 times
+    if (pickaxeClickCount >= 4) { // 4 because we're incrementing after the check
+      setShowPickaxePrompt(true);
+      setPickaxeClickCount(0);
+    }
+  };
+
   const handleAdminAccess = () => {
     if (adminKey === 'ADMINAPPKEY') {
       setShowAdminPrompt(false);
@@ -58,6 +80,17 @@ const Navigation = () => {
     } else {
       alert('Chave incorreta!');
       setAdminKey('');
+    }
+  };
+
+  const handlePickaxeAdminAccess = () => {
+    if (pickaxeKey === 'HAPPYMINE') {
+      setShowPickaxePrompt(false);
+      setPickaxeKey('');
+      navigate('/admin');
+    } else {
+      alert('Chave incorreta!');
+      setPickaxeKey('');
     }
   };
 
@@ -79,7 +112,7 @@ const Navigation = () => {
 
   const userLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/miners', icon: Pickaxe, label: 'Mineradores' },
+    { to: '/miners', icon: Pickaxe, label: 'Mineradores', onClick: handlePickaxeClick },
     { to: '/deposit', icon: CreditCard, label: 'Depósito' },
     { to: '/withdraw', icon: Banknote, label: 'Saque' },
     { to: '/affiliates', icon: Users, label: 'Afiliados', onClick: handleAffiliatesClick },
@@ -94,7 +127,10 @@ const Navigation = () => {
             {/* Logo */}
             <div className="flex items-center">
               <Link to="/" className="flex items-center space-x-2">
-                <Pickaxe className="h-8 w-8 text-gold-400" />
+                <Pickaxe 
+                  className="h-8 w-8 text-gold-400 cursor-pointer hover:text-gold-500 transition-colors" 
+                  onClick={handlePickaxeClick}
+                />
                 <span className="text-xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
                   MineWealth Forge
                 </span>
@@ -285,6 +321,32 @@ const Navigation = () => {
                 Acessar
               </Button>
               <Button onClick={() => setShowAdminPrompt(false)} variant="outline" className="border-gray-600 text-gray-300">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pickaxe Admin Prompt Modal */}
+      {showPickaxePrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Acesso de Administrador</h3>
+            <p className="text-gray-300 mb-4">Digite a chave de acesso:</p>
+            <input
+              type="password"
+              value={pickaxeKey}
+              onChange={(e) => setPickaxeKey(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white mb-4"
+              placeholder="Digite a chave..."
+              onKeyPress={(e) => e.key === 'Enter' && handlePickaxeAdminAccess()}
+            />
+            <div className="flex gap-2">
+              <Button onClick={handlePickaxeAdminAccess} className="bg-gold-400 text-gray-900 hover:bg-gold-500">
+                Continuar
+              </Button>
+              <Button onClick={() => setShowPickaxePrompt(false)} variant="outline" className="border-gray-600 text-gray-300">
                 Cancelar
               </Button>
             </div>

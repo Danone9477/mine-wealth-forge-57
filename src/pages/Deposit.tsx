@@ -19,10 +19,7 @@ const Deposit = () => {
   const [selectedMethod, setSelectedMethod] = useState<'emola' | 'mpesa'>('emola');
 
   const minDeposit = 100;
-
-  // Credenciais da Gibra Pay
-  const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4632267e";
-  const WALLET_ID = "4c8e3fab-70a2-4b19-a23e-7b4472565c14";
+  const WALLET_ID = "1741243147134x615195806040850400";
 
   const processAffiliateCommission = async (depositAmount: number, userUID: string) => {
     try {
@@ -47,16 +44,17 @@ const Deposit = () => {
         const newTotalCommissions = (affiliateData.affiliateStats?.totalCommissions || 0) + commission;
         const newMonthlyCommissions = (affiliateData.affiliateStats?.monthlyCommissions || 0) + commission;
         
-        // Adicionar à lista de referidos
-        const newReferral = {
+        // Adicionar à lista de referidos ativos
+        const newActiveReferral = {
           username: userData.username,
           date: new Date().toLocaleDateString('pt-BR'),
-          commission: commission
+          commission: commission,
+          depositAmount: depositAmount
         };
         
-        const updatedReferralsList = [
-          ...(affiliateData.affiliateStats?.referralsList || []),
-          newReferral
+        const updatedActiveReferrals = [
+          ...(affiliateData.affiliateStats?.activeReferrals || []),
+          newActiveReferral
         ];
         
         // Incrementar contadores
@@ -64,8 +62,8 @@ const Deposit = () => {
           ...affiliateData.affiliateStats,
           totalCommissions: newTotalCommissions,
           monthlyCommissions: newMonthlyCommissions,
-          activeReferrals: (affiliateData.affiliateStats?.activeReferrals || 0) + 1,
-          referralsList: updatedReferralsList
+          activeReferralsCount: updatedActiveReferrals.length,
+          activeReferrals: updatedActiveReferrals
         };
         
         await updateDoc(doc(db, 'users', affiliateDoc.id), {
@@ -126,50 +124,67 @@ const Deposit = () => {
     setLoading(true);
 
     try {
-      console.log('Iniciando depósito com Gibra Pay:', {
+      const endpoint = selectedMethod === 'emola' 
+        ? 'https://mozpayment.co.mz/api/1.1/wf/pagamentorotativoemola'
+        : 'https://mozpayment.co.mz/api/1.1/wf/pagamentorotativompesa';
+
+      console.log('Iniciando depósito com MozPayment:', {
+        endpoint,
         amount: depositAmount,
         phone: phone,
-        wallet_id: WALLET_ID
+        carteira: WALLET_ID
       });
 
-      const response = await fetch("https://gibrapay.online/v1/transfer", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "API-Key": GIBRA_PAY_API_KEY
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          wallet_id: WALLET_ID,
-          amount: depositAmount,
-          phone_number: phone
+          carteira: WALLET_ID,
+          numero: phone,
+          "quem comprou": userData.username,
+          valor: depositAmount
         })
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      const result = await response.text(); // MozPayment returns text responses
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+      console.log('MozPayment response:', result);
+
+      let status: 'success' | 'failed' = 'failed';
+      let message = result;
+
+      // Check response for success indicators
+      if (response.status === 200 || result.toLowerCase().includes('success = yes') || result.toLowerCase().includes('pagamento aprovado')) {
+        status = 'success';
+        message = 'Pagamento aprovado';
+      } else if (response.status === 201) {
+        status = 'failed';
+        message = 'Erro na transação';
+      } else if (response.status === 422) {
+        status = 'failed';
+        message = 'Saldo insuficiente';
+      } else if (response.status === 400) {
+        status = 'failed';
+        message = 'PIN errado';
       }
 
-      const result = await response.json();
-      console.log('Gibra Pay response:', result);
-
       const transaction = {
-        id: result.data?.id || Date.now().toString(),
+        id: Date.now().toString(),
         type: 'deposit' as const,
         amount: depositAmount,
         method: selectedMethod,
         phone,
-        status: result.status === 'success' ? 'success' as const : 'failed' as const,
+        status,
         date: new Date().toISOString(),
-        description: `Depósito via ${selectedMethod.toUpperCase()}`,
-        gibra_pay_id: result.data?.id,
-        gibra_pay_status: result.data?.status,
-        gibra_response: result
+        description: `Depósito via ${selectedMethod.toUpperCase()} - MozPayment`,
+        mozpayment_response: result,
+        mozpayment_status_code: response.status
       };
 
-      if (result.status === 'success') {
+      if (status === 'success') {
         // Processar comissão de afiliado se aplicável
         await processAffiliateCommission(depositAmount, userData.uid);
 
@@ -194,7 +209,7 @@ const Deposit = () => {
 
         toast({
           title: "Falha no depósito",
-          description: result.message || "A transferência falhou. Verifique os dados e tente novamente.",
+          description: message || "A transferência falhou. Verifique os dados e tente novamente.",
           variant: "destructive",
         });
       }
@@ -210,7 +225,7 @@ const Deposit = () => {
         phone,
         status: 'failed' as const,
         date: new Date().toISOString(),
-        description: `Falha no depósito via ${selectedMethod.toUpperCase()}`,
+        description: `Falha no depósito via ${selectedMethod.toUpperCase()} - MozPayment`,
         error: error instanceof Error ? error.message : 'Erro desconhecido'
       };
 
@@ -222,13 +237,7 @@ const Deposit = () => {
       let errorMessage = "Erro de conexão com o serviço de pagamento";
       
       if (error instanceof Error) {
-        if (error.message.includes('HTTP 400')) {
-          errorMessage = "Dados inválidos. Verifique o valor e número de telefone";
-        } else if (error.message.includes('HTTP 401')) {
-          errorMessage = "Erro de autenticação com o serviço de pagamento";
-        } else if (error.message.includes('HTTP 500')) {
-          errorMessage = "Erro interno do serviço de pagamento";
-        } else if (error.message.includes('Failed to fetch')) {
+        if (error.message.includes('Failed to fetch')) {
           errorMessage = "Erro de conectividade. Verifique sua internet";
         }
       }
@@ -280,7 +289,7 @@ const Deposit = () => {
               <CardHeader>
                 <CardTitle className="text-white">Detalhes do Depósito</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Preencha os dados para processar seu depósito via Gibra Pay
+                  Preencha os dados para processar seu depósito via MozPayment
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -369,7 +378,7 @@ const Deposit = () => {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                      Processando via Gibra Pay...
+                      Processando via MozPayment...
                     </div>
                   ) : (
                     `Depositar ${amount || '0'} MT`
@@ -389,7 +398,7 @@ const Deposit = () => {
                   <h3 className="text-base sm:text-lg font-bold text-white">100% Seguro</h3>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Todos os depósitos são processados através da API segura da Gibra Pay com criptografia de ponta.
+                  Todos os depósitos são processados através da API segura da MozPayment com máxima segurança.
                 </p>
               </CardContent>
             </Card>
@@ -402,7 +411,7 @@ const Deposit = () => {
                   <h3 className="text-base sm:text-lg font-bold text-white">Processamento Rápido</h3>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Depósitos são processados instantaneamente via Gibra Pay e o saldo é creditado imediatamente.
+                  Depósitos são processados rapidamente via MozPayment e o saldo é creditado automaticamente.
                 </p>
               </CardContent>
             </Card>
@@ -426,14 +435,14 @@ const Deposit = () => {
             {/* API Info */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Powered by Gibra Pay</CardTitle>
+                <CardTitle className="text-white text-lg">Powered by MozPayment</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-gold-400 text-gray-900 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</div>
                   <div>
                     <p className="text-white font-medium">API Segura</p>
-                    <p className="text-gray-400 text-sm">Integração oficial Gibra Pay</p>
+                    <p className="text-gray-400 text-sm">Integração oficial MozPayment</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

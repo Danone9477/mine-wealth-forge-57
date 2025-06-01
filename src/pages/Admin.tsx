@@ -23,7 +23,9 @@ import {
   CheckCircle,
   XCircle,
   Search,
-  Filter
+  Filter,
+  Clock,
+  Banknote
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -40,11 +42,25 @@ interface AdminUserData {
   transactions?: any[];
   createdAt?: string;
   lastLogin?: string;
+  miners?: any[];
+}
+
+interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  username: string;
+  amount: number;
+  phone: string;
+  method: string;
+  status: 'pending' | 'approved' | 'failed';
+  date: string;
+  transactionId?: string;
 }
 
 const Admin = () => {
   const { userData } = useAuth();
   const [users, setUsers] = useState<AdminUserData[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AdminUserData | null>(null);
   const [editBalance, setEditBalance] = useState('');
@@ -52,6 +68,7 @@ const Admin = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'users' | 'withdrawals'>('users');
 
   // Stats
   const [stats, setStats] = useState({
@@ -61,7 +78,8 @@ const Admin = () => {
     totalDeposits: 0,
     totalWithdrawals: 0,
     activeUsers: 0,
-    pendingWithdrawals: 0
+    pendingWithdrawals: 0,
+    pendingWithdrawalAmount: 0
   });
 
   const loadUsers = async () => {
@@ -71,12 +89,14 @@ const Admin = () => {
       const snapshot = await getDocs(usersRef);
       
       const usersData: AdminUserData[] = [];
+      const withdrawalRequests: WithdrawalRequest[] = [];
       let totalBalance = 0;
       let totalAffiliateBalance = 0;
       let totalDeposits = 0;
       let totalWithdrawals = 0;
       let activeUsers = 0;
       let pendingWithdrawals = 0;
+      let pendingWithdrawalAmount = 0;
 
       snapshot.forEach((doc) => {
         const userData = doc.data() as AdminUserData;
@@ -85,7 +105,7 @@ const Admin = () => {
         totalBalance += userData.balance || 0;
         totalAffiliateBalance += userData.affiliateBalance || 0;
         
-        // Count transactions
+        // Count transactions and extract withdrawal requests
         if (userData.transactions) {
           userData.transactions.forEach(tx => {
             if (tx.type === 'deposit' && tx.status === 'success') {
@@ -94,26 +114,34 @@ const Admin = () => {
               if (tx.status === 'success') {
                 totalWithdrawals += tx.amount;
               } else if (tx.status === 'pending') {
-                pendingWithdrawals += tx.amount;
+                pendingWithdrawals++;
+                pendingWithdrawalAmount += tx.amount;
+                
+                // Add to withdrawal requests
+                withdrawalRequests.push({
+                  id: tx.id,
+                  userId: userData.uid,
+                  username: userData.username,
+                  amount: tx.amount,
+                  phone: tx.phone || '',
+                  method: tx.method || 'emola',
+                  status: 'pending',
+                  date: tx.date,
+                  transactionId: tx.id
+                });
               }
             }
           });
         }
         
-        // Check if user is active (has made transactions in last 30 days)
-        if (userData.transactions && userData.transactions.length > 0) {
-          const lastTransaction = userData.transactions[userData.transactions.length - 1];
-          const lastTxDate = new Date(lastTransaction.date);
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          
-          if (lastTxDate > thirtyDaysAgo) {
-            activeUsers++;
-          }
+        // Check if user is active (has miners or recent transactions)
+        if (userData.miners && userData.miners.length > 0) {
+          activeUsers++;
         }
       });
 
       setUsers(usersData);
+      setWithdrawals(withdrawalRequests);
       setStats({
         totalUsers: usersData.length,
         totalBalance,
@@ -121,7 +149,8 @@ const Admin = () => {
         totalDeposits,
         totalWithdrawals,
         activeUsers,
-        pendingWithdrawals
+        pendingWithdrawals,
+        pendingWithdrawalAmount
       });
       
     } catch (error) {
@@ -172,6 +201,49 @@ const Admin = () => {
       toast({
         title: "Erro",
         description: "Erro ao atualizar usuário",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProcessWithdrawal = async (withdrawalId: string, newStatus: 'approved' | 'failed') => {
+    try {
+      // Find the withdrawal and user
+      const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+      if (!withdrawal) return;
+
+      const user = users.find(u => u.uid === withdrawal.userId);
+      if (!user) return;
+
+      // Update the transaction in user's data
+      const updatedTransactions = user.transactions?.map(tx => {
+        if (tx.id === withdrawalId) {
+          return {
+            ...tx,
+            status: newStatus === 'approved' ? 'success' : 'failed',
+            processedAt: new Date().toISOString(),
+            processedBy: 'admin'
+          };
+        }
+        return tx;
+      }) || [];
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        transactions: updatedTransactions,
+        updatedAt: new Date().toISOString()
+      });
+
+      toast({
+        title: "Sucesso",
+        description: `Saque ${newStatus === 'approved' ? 'aprovado' : 'rejeitado'} com sucesso`,
+      });
+
+      loadUsers();
+    } catch (error) {
+      console.error('Erro ao processar saque:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao processar saque",
         variant: "destructive",
       });
     }
@@ -267,14 +339,15 @@ const Admin = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
+          <Card className="bg-gradient-to-br from-yellow-900/50 to-yellow-800/50 border-yellow-700">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gold-300 text-sm font-medium">Saldo Afiliados</p>
-                  <p className="text-3xl font-bold text-white">{stats.totalAffiliateBalance.toFixed(2)} MT</p>
+                  <p className="text-yellow-300 text-sm font-medium">Saques Pendentes</p>
+                  <p className="text-3xl font-bold text-white">{stats.pendingWithdrawals}</p>
+                  <p className="text-sm text-yellow-300">{stats.pendingWithdrawalAmount.toFixed(2)} MT</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-gold-400" />
+                <Clock className="h-8 w-8 text-yellow-400" />
               </div>
             </CardContent>
           </Card>
@@ -292,143 +365,192 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Additional Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-300 text-sm font-medium">Total Depósitos</p>
-                  <p className="text-2xl font-bold text-green-400">{stats.totalDeposits.toFixed(2)} MT</p>
-                </div>
-                <TrendingUp className="h-6 w-6 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-300 text-sm font-medium">Total Saques</p>
-                  <p className="text-2xl font-bold text-red-400">{stats.totalWithdrawals.toFixed(2)} MT</p>
-                </div>
-                <TrendingUp className="h-6 w-6 text-red-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-300 text-sm font-medium">Saques Pendentes</p>
-                  <p className="text-2xl font-bold text-yellow-400">{stats.pendingWithdrawals.toFixed(2)} MT</p>
-                </div>
-                <AlertTriangle className="h-6 w-6 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tab Navigation */}
+        <div className="flex space-x-4 mb-6">
+          <Button
+            onClick={() => setActiveTab('users')}
+            className={activeTab === 'users' ? 'bg-gold-400 text-gray-900' : 'bg-gray-700 text-white'}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Gerenciar Usuários
+          </Button>
+          <Button
+            onClick={() => setActiveTab('withdrawals')}
+            className={activeTab === 'withdrawals' ? 'bg-gold-400 text-gray-900' : 'bg-gray-700 text-white'}
+          >
+            <Banknote className="h-4 w-4 mr-2" />
+            Processar Saques ({stats.pendingWithdrawals})
+          </Button>
         </div>
 
-        {/* Filters and Search */}
-        <Card className="bg-gray-800 border-gray-700 mb-6">
-          <CardHeader>
-            <CardTitle className="text-white">Filtros e Busca</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <Label className="text-gray-300">Buscar Usuário</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Nome ou email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-700 border-gray-600 text-white"
-                  />
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <>
+            {/* Filters and Search */}
+            <Card className="bg-gray-800 border-gray-700 mb-6">
+              <CardHeader>
+                <CardTitle className="text-white">Filtros e Busca</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <Label className="text-gray-300">Buscar Usuário</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Nome ou email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-gray-300">Filtrar por Status</Label>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                    >
+                      <option value="all">Todos</option>
+                      <option value="active">Com Saldo</option>
+                      <option value="affiliate">Afiliados</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              
-              <div>
-                <Label className="text-gray-300">Filtrar por Status</Label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                >
-                  <option value="all">Todos</option>
-                  <option value="active">Com Saldo</option>
-                  <option value="affiliate">Afiliados</option>
-                </select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Users Table */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Gerenciar Usuários ({filteredUsers.length})</CardTitle>
-            <CardDescription className="text-gray-400">
-              Visualize e gerencie todas as contas da plataforma
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-700">
-                    <TableHead className="text-gray-300">Usuário</TableHead>
-                    <TableHead className="text-gray-300">Email</TableHead>
-                    <TableHead className="text-gray-300">Saldo Plataforma</TableHead>
-                    <TableHead className="text-gray-300">Saldo Afiliado</TableHead>
-                    <TableHead className="text-gray-300">Transações</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.uid} className="border-gray-700">
-                      <TableCell className="text-white font-medium">{user.username}</TableCell>
-                      <TableCell className="text-gray-300">{user.email}</TableCell>
-                      <TableCell className="text-green-400 font-bold">{user.balance.toFixed(2)} MT</TableCell>
-                      <TableCell className="text-gold-400 font-bold">{(user.affiliateBalance || 0).toFixed(2)} MT</TableCell>
-                      <TableCell className="text-gray-300">{user.transactions?.length || 0}</TableCell>
-                      <TableCell>
-                        {user.balance > 0 ? (
-                          <Badge className="bg-green-500 text-white">Ativo</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-gray-600 text-gray-400">Inativo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteUser(user.uid)}
-                            className="bg-red-500 hover:bg-red-600 text-white"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            {/* Users Table */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">Gerenciar Usuários ({filteredUsers.length})</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Visualize e gerencie todas as contas da plataforma
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-gray-700">
+                        <TableHead className="text-gray-300">Usuário</TableHead>
+                        <TableHead className="text-gray-300">Email</TableHead>
+                        <TableHead className="text-gray-300">Saldo</TableHead>
+                        <TableHead className="text-gray-300">Afiliado</TableHead>
+                        <TableHead className="text-gray-300">Mineradores</TableHead>
+                        <TableHead className="text-gray-300">Transações</TableHead>
+                        <TableHead className="text-gray-300">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.map((user) => (
+                        <TableRow key={user.uid} className="border-gray-700">
+                          <TableCell className="text-white font-medium">{user.username}</TableCell>
+                          <TableCell className="text-gray-300">{user.email}</TableCell>
+                          <TableCell className="text-green-400 font-bold">{user.balance.toFixed(2)} MT</TableCell>
+                          <TableCell className="text-gold-400 font-bold">{(user.affiliateBalance || 0).toFixed(2)} MT</TableCell>
+                          <TableCell className="text-blue-400">{user.miners?.length || 0}</TableCell>
+                          <TableCell className="text-gray-300">{user.transactions?.length || 0}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeleteUser(user.uid)}
+                                className="bg-red-500 hover:bg-red-600 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Withdrawals Tab */}
+        {activeTab === 'withdrawals' && (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Processar Saques</CardTitle>
+              <CardDescription className="text-gray-400">
+                Gerencie todas as solicitações de saque pendentes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-700">
+                      <TableHead className="text-gray-300">Usuário</TableHead>
+                      <TableHead className="text-gray-300">Valor</TableHead>
+                      <TableHead className="text-gray-300">Método</TableHead>
+                      <TableHead className="text-gray-300">Telefone</TableHead>
+                      <TableHead className="text-gray-300">Data</TableHead>
+                      <TableHead className="text-gray-300">Status</TableHead>
+                      <TableHead className="text-gray-300">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {withdrawals.map((withdrawal) => (
+                      <TableRow key={withdrawal.id} className="border-gray-700">
+                        <TableCell className="text-white font-medium">{withdrawal.username}</TableCell>
+                        <TableCell className="text-yellow-400 font-bold">{withdrawal.amount.toFixed(2)} MT</TableCell>
+                        <TableCell className="text-gray-300 capitalize">{withdrawal.method}</TableCell>
+                        <TableCell className="text-gray-300">{withdrawal.phone}</TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(withdrawal.date).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-yellow-500 text-black">Pendente</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleProcessWithdrawal(withdrawal.id, 'approved')}
+                              className="bg-green-500 hover:bg-green-600 text-white"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleProcessWithdrawal(withdrawal.id, 'failed')}
+                              className="bg-red-500 hover:bg-red-600 text-white"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              Rejeitar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {withdrawals.length === 0 && (
+                  <div className="text-center py-8">
+                    <Banknote className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Nenhum saque pendente</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Edit User Modal */}
         {showEditModal && selectedUser && (

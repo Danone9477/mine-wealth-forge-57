@@ -149,21 +149,53 @@ const Miners = () => {
       return;
     }
 
+    // Check if user already owns this miner
+    const alreadyOwned = userData.miners?.some(m => m.id === miner.id && m.active);
+    if (alreadyOwned) {
+      toast({
+        title: "Minerador já ativo",
+        description: "Você já possui este minerador ativo",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(miner.id);
     
     try {
+      const now = new Date();
+      const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 dias
+
       const newMiner = {
         ...miner,
-        purchaseDate: new Date().toISOString(),
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 dias
+        purchaseDate: now.toISOString(),
+        expiryDate: expiryDate.toISOString(),
         active: true,
         totalReturn: miner.price * 3.5,
-        daysRemaining: 30
+        daysRemaining: 30,
+        lastCollection: now.toISOString()
       };
 
+      // Create purchase transaction
+      const transaction = {
+        id: Date.now().toString(),
+        type: 'purchase' as const,
+        amount: -miner.price, // Negative because it's a purchase
+        status: 'success' as const,
+        date: now.toISOString(),
+        description: `Compra do minerador ${miner.name}`,
+        minerInfo: {
+          name: miner.name,
+          dailyReturn: miner.dailyReturn,
+          duration: '30 dias'
+        }
+      };
+
+      // Update user data: debit balance and add miner
       await updateUserData({
         balance: userData.balance - miner.price,
-        miners: [...(userData.miners || []), newMiner]
+        miners: [...(userData.miners || []), newMiner],
+        transactions: [...(userData.transactions || []), transaction]
       });
 
       toast({
@@ -210,6 +242,65 @@ const Miners = () => {
             <span className="text-green-400 font-semibold">Seu saldo: {userData.balance} MT</span>
           </div>
         </div>
+
+        {/* Active Miners Section */}
+        {userData.miners && userData.miners.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-6">Seus Mineradores Ativos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {userData.miners.filter(m => m.active).map((miner, index) => {
+                const IconComponent = miner.icon || Zap;
+                const daysLeft = Math.max(0, Math.floor((new Date(miner.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                const progressPercentage = ((30 - daysLeft) / 30) * 100;
+                
+                return (
+                  <Card key={index} className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-white text-lg">{miner.name}</CardTitle>
+                        <Badge className="bg-green-500 text-white">Ativo</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center p-3 bg-gray-700 rounded-lg">
+                          <p className="text-gray-400 text-xs">Ganho/Dia</p>
+                          <p className="text-lg font-bold text-green-400">{miner.dailyReturn} MT</p>
+                        </div>
+                        <div className="text-center p-3 bg-gray-700 rounded-lg">
+                          <p className="text-gray-400 text-xs">Dias Restantes</p>
+                          <p className="text-lg font-bold text-white">{daysLeft}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Progresso</span>
+                          <span className="text-white">{Math.round(progressPercentage)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progressPercentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <p className="text-sm text-gray-400">
+                          Comprado em: {new Date(miner.purchaseDate).toLocaleDateString('pt-BR')}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Expira em: {new Date(miner.expiryDate).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Miners Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
