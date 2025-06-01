@@ -18,9 +18,9 @@ const Deposit = () => {
 
   const minDeposit = 100;
 
-  // Você deve configurar sua API key da Gibra Pay aqui
-  const GIBRA_PAY_API_KEY = "SUA_API_KEY_AQUI"; // Configure esta chave
-  const WALLET_ID = "4c8e3fab-70a2-4b19-a23e-7b4472565c14"; // Configure seu wallet ID
+  // Credenciais atualizadas da Gibra Pay
+  const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e";
+  const WALLET_ID = "9d2cd54d-720b-490f-b0a9-5c9eace02ff4";
 
   const handleDeposit = async () => {
     if (!userData) return;

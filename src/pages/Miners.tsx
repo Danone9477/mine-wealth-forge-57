@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Zap, TrendingUp, Star, Crown, Gem, Coins } from 'lucide-react';
+import { Zap, TrendingUp, Star, Crown, Gem, Coins, Clock, Calculator } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const Miners = () => {
@@ -18,73 +18,121 @@ const Miners = () => {
       id: 'basic',
       name: 'MineCrypto Basic',
       price: 380,
-      dailyReturn: 15,
+      dailyReturn: Math.round((380 * 3.5) / 30), // ~44 MT/dia
       image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
       icon: Zap,
       color: 'from-blue-400 to-blue-600',
       badge: 'Iniciante',
       description: 'Perfeito para começar sua jornada na mineração',
-      features: ['Mineração 24/7', 'Suporte básico', 'ROI em 25 dias']
+      features: ['Mineração 24/7', 'Suporte básico', 'Retorno 350% em 30 dias', 'Ganho total: 1,330 MT']
     },
     {
-      id: 'pro',
-      name: 'CryptoMiner Pro',
-      price: 850,
-      dailyReturn: 35,
+      id: 'starter',
+      name: 'CryptoMiner Starter',
+      price: 500,
+      dailyReturn: Math.round((500 * 3.5) / 30), // ~58 MT/dia
       image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&h=300&fit=crop',
       icon: TrendingUp,
       color: 'from-green-400 to-green-600',
       badge: 'Popular',
-      description: 'O mais escolhido pelos investidores inteligentes',
-      features: ['Mineração otimizada', 'Suporte prioritário', 'ROI em 24 dias']
+      description: 'Ideal para investidores inteligentes',
+      features: ['Mineração otimizada', 'Suporte prioritário', 'Retorno 350% em 30 dias', 'Ganho total: 1,750 MT']
     },
     {
-      id: 'premium',
-      name: 'GoldMiner Premium',
-      price: 1500,
-      dailyReturn: 65,
+      id: 'pro',
+      name: 'ProMiner Advanced',
+      price: 650,
+      dailyReturn: Math.round((650 * 3.5) / 30), // ~76 MT/dia
       image: 'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?w=400&h=300&fit=crop',
       icon: Star,
       color: 'from-purple-400 to-purple-600',
       badge: 'Avançado',
-      description: 'Para quem quer ganhos superiores',
-      features: ['Alto desempenho', 'Suporte VIP', 'ROI em 23 dias']
+      description: 'Para quem quer ganhos consistentes',
+      features: ['Alto desempenho', 'Suporte VIP', 'Retorno 350% em 30 dias', 'Ganho total: 2,275 MT']
+    },
+    {
+      id: 'premium',
+      name: 'GoldMiner Premium',
+      price: 800,
+      dailyReturn: Math.round((800 * 3.5) / 30), // ~93 MT/dia
+      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
+      icon: Crown,
+      color: 'from-gold-400 to-gold-600',
+      badge: 'Premium',
+      description: 'Ganhos premium garantidos',
+      features: ['Máximo desempenho', 'Gestor pessoal', 'Retorno 350% em 30 dias', 'Ganho total: 2,800 MT']
     },
     {
       id: 'elite',
       name: 'EliteMiner Diamond',
-      price: 3200,
-      dailyReturn: 140,
-      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
-      icon: Crown,
-      color: 'from-gold-400 to-gold-600',
+      price: 1000,
+      dailyReturn: Math.round((1000 * 3.5) / 30), // ~117 MT/dia
+      image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop',
+      icon: Gem,
+      color: 'from-indigo-400 to-indigo-600',
       badge: 'Elite',
-      description: 'Ganhos de elite para investidores sérios',
-      features: ['Máximo desempenho', 'Gestor pessoal', 'ROI em 22 dias']
+      description: 'Para investidores sérios',
+      features: ['Tecnologia exclusiva', 'Consultoria premium', 'Retorno 350% em 30 dias', 'Ganho total: 3,500 MT']
     },
     {
       id: 'platinum',
       name: 'PlatinumMiner Ultra',
-      price: 5500,
-      dailyReturn: 250,
-      image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop',
-      icon: Gem,
-      color: 'from-indigo-400 to-indigo-600',
+      price: 1200,
+      dailyReturn: Math.round((1200 * 3.5) / 30), // ~140 MT/dia
+      image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop',
+      icon: Coins,
+      color: 'from-pink-400 to-pink-600',
       badge: 'Platinum',
-      description: 'O mais poderoso da nossa linha',
-      features: ['Tecnologia exclusiva', 'Consultoria', 'ROI em 22 dias']
+      description: 'O mais poderoso da categoria',
+      features: ['Exclusividade total', 'Suporte 24/7', 'Retorno 350% em 30 dias', 'Ganho total: 4,200 MT']
+    },
+    {
+      id: 'supreme',
+      name: 'SupremeMiner Pro',
+      price: 1500,
+      dailyReturn: Math.round((1500 * 3.5) / 30), // ~175 MT/dia
+      image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&h=300&fit=crop',
+      icon: Star,
+      color: 'from-red-400 to-red-600',
+      badge: 'Supreme',
+      description: 'Ganhos supremos assegurados',
+      features: ['Performance superior', 'Suporte VIP 24/7', 'Retorno 350% em 30 dias', 'Ganho total: 5,250 MT']
+    },
+    {
+      id: 'master',
+      name: 'MasterMiner Ultimate',
+      price: 1800,
+      dailyReturn: Math.round((1800 * 3.5) / 30), // ~210 MT/dia
+      image: 'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?w=400&h=300&fit=crop',
+      icon: Crown,
+      color: 'from-orange-400 to-orange-600',
+      badge: 'Master',
+      description: 'Para mestres dos investimentos',
+      features: ['Tecnologia avançada', 'Gestor dedicado', 'Retorno 350% em 30 dias', 'Ganho total: 6,300 MT']
+    },
+    {
+      id: 'legend',
+      name: 'LegendMiner Exclusive',
+      price: 2500,
+      dailyReturn: Math.round((2500 * 3.5) / 30), // ~292 MT/dia
+      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
+      icon: Gem,
+      color: 'from-emerald-400 to-emerald-600',
+      badge: 'Legend',
+      description: 'Exclusivo para lendas',
+      features: ['Acesso exclusivo', 'Consultoria personalizada', 'Retorno 350% em 30 dias', 'Ganho total: 8,750 MT']
     },
     {
       id: 'diamond',
       name: 'DiamondMiner Supreme',
       price: 8000,
-      dailyReturn: 380,
+      dailyReturn: Math.round((8000 * 3.5) / 30), // ~933 MT/dia
       image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop',
       icon: Coins,
-      color: 'from-pink-400 to-pink-600',
-      badge: 'Supreme',
+      color: 'from-cyan-400 to-cyan-600',
+      badge: 'Diamond',
       description: 'O investimento dos milionários',
-      features: ['Exclusividade total', 'Suporte 24/7', 'ROI em 21 dias']
+      features: ['Máxima exclusividade', 'Suporte premium 24/7', 'Retorno 350% em 30 dias', 'Ganho total: 28,000 MT']
     }
   ];
 
@@ -107,7 +155,10 @@ const Miners = () => {
       const newMiner = {
         ...miner,
         purchaseDate: new Date().toISOString(),
-        active: true
+        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 dias
+        active: true,
+        totalReturn: miner.price * 3.5,
+        daysRemaining: 30
       };
 
       await updateUserData({
@@ -117,7 +168,7 @@ const Miners = () => {
 
       toast({
         title: "Minerador comprado com sucesso! 🎉",
-        description: `${miner.name} está agora ativo e gerando ${miner.dailyReturn} MT por dia!`,
+        description: `${miner.name} está ativo! Ganhe ${miner.dailyReturn} MT/dia por 30 dias!`,
       });
     } catch (error) {
       toast({
@@ -152,7 +203,7 @@ const Miners = () => {
             </span>
           </h1>
           <p className="text-xl text-gray-300 mb-6">
-            Escolha o minerador perfeito e comece a ganhar dinheiro automaticamente
+            Retorno garantido de 350% em 30 dias! Escolha seu minerador e comece a ganhar
           </p>
           <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-full px-6 py-3">
             <Coins className="h-5 w-5 text-green-400" />
@@ -161,11 +212,13 @@ const Miners = () => {
         </div>
 
         {/* Miners Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {miners.map((miner) => {
             const IconComponent = miner.icon;
-            const isOwned = userData.miners?.some(m => m.id === miner.id);
+            const isOwned = userData.miners?.some(m => m.id === miner.id && m.active);
             const canAfford = userData.balance >= miner.price;
+            const totalReturn = miner.price * 3.5;
+            const profit = totalReturn - miner.price;
             
             return (
               <Card key={miner.id} className="bg-gray-800 border-gray-700 overflow-hidden group hover:scale-105 transition-all duration-300">
@@ -184,32 +237,54 @@ const Miners = () => {
                   <div className="absolute bottom-4 left-4">
                     <IconComponent className="h-8 w-8 text-white" />
                   </div>
+                  <div className="absolute top-4 left-4">
+                    <Badge className="bg-black/50 text-white border-0">
+                      +{Math.round(((totalReturn - miner.price) / miner.price) * 100)}%
+                    </Badge>
+                  </div>
                 </div>
                 
-                <CardHeader>
-                  <CardTitle className="text-white text-xl">{miner.name}</CardTitle>
-                  <CardDescription className="text-gray-400">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-white text-lg">{miner.name}</CardTitle>
+                  <CardDescription className="text-gray-400 text-sm">
                     {miner.description}
                   </CardDescription>
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="text-center p-3 bg-gray-700 rounded-lg">
-                      <p className="text-gray-400 text-sm">Preço</p>
-                      <p className="text-2xl font-bold text-white">{miner.price} MT</p>
+                      <p className="text-gray-400 text-xs">Investimento</p>
+                      <p className="text-lg font-bold text-white">{miner.price} MT</p>
                     </div>
                     <div className="text-center p-3 bg-gray-700 rounded-lg">
-                      <p className="text-gray-400 text-sm">Ganho/Dia</p>
-                      <p className="text-2xl font-bold text-green-400">{miner.dailyReturn} MT</p>
+                      <p className="text-gray-400 text-xs">Ganho/Dia</p>
+                      <p className="text-lg font-bold text-green-400">{miner.dailyReturn} MT</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 bg-gradient-to-r from-gold-900/30 to-gold-800/30 rounded-lg border border-gold-700/30">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Clock className="h-3 w-3 text-gold-400" />
+                        <p className="text-gold-400 text-xs">Duração</p>
+                      </div>
+                      <p className="text-sm font-bold text-white">30 dias</p>
+                    </div>
+                    <div className="text-center p-3 bg-gradient-to-r from-green-900/30 to-green-800/30 rounded-lg border border-green-700/30">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Calculator className="h-3 w-3 text-green-400" />
+                        <p className="text-green-400 text-xs">Lucro</p>
+                      </div>
+                      <p className="text-sm font-bold text-white">{profit} MT</p>
                     </div>
                   </div>
                   
                   <div className="space-y-2">
                     {miner.features.map((feature, index) => (
                       <div key={index} className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-gold-400 rounded-full"></div>
-                        <span className="text-gray-300 text-sm">{feature}</span>
+                        <div className="w-2 h-2 bg-gold-400 rounded-full flex-shrink-0"></div>
+                        <span className="text-gray-300 text-xs">{feature}</span>
                       </div>
                     ))}
                   </div>
@@ -229,7 +304,7 @@ const Miners = () => {
                     >
                       {loading === miner.id ? 'Comprando...' : 
                        !canAfford ? 'Saldo Insuficiente' : 
-                       `Comprar por ${miner.price} MT`}
+                       `Comprar ${miner.price} MT`}
                     </Button>
                   )}
                 </CardContent>
@@ -238,31 +313,42 @@ const Miners = () => {
           })}
         </div>
 
-        {/* Info Section */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-700">
-            <CardContent className="p-6 text-center">
-              <Zap className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Mineração 24/7</h3>
-              <p className="text-gray-300">Seus mineradores trabalham 24 horas por dia, gerando renda automaticamente</p>
-            </CardContent>
-          </Card>
+        {/* ROI Info Section */}
+        <div className="mt-16 bg-gradient-to-r from-gold-900/20 to-gold-800/20 border border-gold-700/30 rounded-2xl p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-4">
+              <span className="text-gold-400">350% de Retorno</span> Garantido em 30 Dias!
+            </h2>
+            <p className="text-gray-300 text-lg">
+              Todos os mineradores oferecem retorno fixo de 3.5x do valor investido
+            </p>
+          </div>
 
-          <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="h-12 w-12 text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">ROI Garantido</h3>
-              <p className="text-gray-300">Retorno do investimento entre 21-25 dias, com ganhos contínuos</p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-700">
+              <CardContent className="p-6 text-center">
+                <Calculator className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Cálculo Simples</h3>
+                <p className="text-gray-300">Invista X, receba 3.5X de volta em 30 dias</p>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
-            <CardContent className="p-6 text-center">
-              <Crown className="h-12 w-12 text-gold-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Suporte Premium</h3>
-              <p className="text-gray-300">Suporte especializado para maximizar seus ganhos</p>
-            </CardContent>
-          </Card>
+            <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
+              <CardContent className="p-6 text-center">
+                <Clock className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">30 Dias Fixos</h3>
+                <p className="text-gray-300">Duração fixa de 30 dias para todos os planos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-gold-900/50 to-gold-800/50 border-gold-700">
+              <CardContent className="p-6 text-center">
+                <Crown className="h-12 w-12 text-gold-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Ganhos Diários</h3>
+                <p className="text-gray-300">Receba seus ganhos automaticamente todo dia</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
