@@ -5,6 +5,18 @@ import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase
 import { auth, db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 
+interface AffiliateStats {
+  totalInvited: number;
+  activeReferrals: number;
+  totalCommissions: number;
+  monthlyCommissions: number;
+  referralsList: Array<{
+    username: string;
+    date: string;
+    commission: number;
+  }>;
+}
+
 interface UserData {
   uid: string;
   username: string;
@@ -14,6 +26,10 @@ interface UserData {
   miners: any[];
   lastTaskDate?: string;
   transactions?: any[];
+  affiliateCode?: string;
+  affiliateBalance?: number;
+  affiliateStats?: AffiliateStats;
+  referredBy?: string;
 }
 
 interface AuthContextType {
@@ -78,6 +94,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalEarnings: 0,
         miners: [],
         transactions: [],
+        affiliateBalance: 0,
+        affiliateStats: {
+          totalInvited: 0,
+          activeReferrals: 0,
+          totalCommissions: 0,
+          monthlyCommissions: 0,
+          referralsList: []
+        }
       };
       
       await setDoc(doc(db, 'users', result.user.uid), newUserData);
