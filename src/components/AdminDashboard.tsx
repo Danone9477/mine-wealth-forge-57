@@ -127,6 +127,13 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Função auxiliar para verificar se um status é pendente
+  const isPendingStatus = (status?: string) => {
+    if (!status) return false;
+    const normalizedStatus = status.toLowerCase().trim();
+    return normalizedStatus === 'pending' || normalizedStatus === 'pendente';
+  };
+
   const loadAdminData = async () => {
     try {
       setLoading(true);
@@ -173,13 +180,22 @@ const AdminDashboard = () => {
       setTransactions(transactionsData);
       console.log('💳 Transações carregadas:', transactionsData.length);
 
-      // Melhorar a separação e contagem de saques
+      // Filtrar saques mais precisamente
       const allWithdrawals = transactionsData.filter(t => 
         t.type === 'withdrawal' || t.type === 'saque'
       );
       
       console.log('🔍 Todos os saques encontrados:', allWithdrawals.length);
+      console.log('📊 Detalhes dos saques:', allWithdrawals.map(w => ({
+        id: w.id.slice(-8),
+        username: w.username,
+        amount: w.amount,
+        status: w.status,
+        source: w.source,
+        isPending: isPendingStatus(w.status)
+      })));
       
+      // Separar saques normais e de afiliados
       const normalWithdrawals = allWithdrawals.filter(t => 
         !t.source || t.source === 'balance' || t.source === 'main'
       );
@@ -194,20 +210,29 @@ const AdminDashboard = () => {
       console.log('💰 Saques normais:', normalWithdrawals.length);
       console.log('⭐ Saques de afiliados:', affiliateWithdrawalsData.length);
 
-      // Contar saques pendentes com mais precisão
-      const pendingNormalWithdrawals = normalWithdrawals.filter(w => 
-        w.status === 'pending' || w.status === 'pendente'
-      );
-      
-      const pendingAffiliateWithdrawals = affiliateWithdrawalsData.filter(w => 
-        w.status === 'pending' || w.status === 'pendente'
-      );
-
+      // Contar saques pendentes usando a função auxiliar
+      const pendingNormalWithdrawals = normalWithdrawals.filter(w => isPendingStatus(w.status));
+      const pendingAffiliateWithdrawals = affiliateWithdrawalsData.filter(w => isPendingStatus(w.status));
       const totalPendingWithdrawals = pendingNormalWithdrawals.length + pendingAffiliateWithdrawals.length;
       
       console.log('⏳ Saques normais pendentes:', pendingNormalWithdrawals.length);
       console.log('⏳ Saques de afiliados pendentes:', pendingAffiliateWithdrawals.length);
       console.log('⏳ Total de saques pendentes:', totalPendingWithdrawals);
+
+      // Log detalhado dos saques pendentes
+      console.log('📋 Saques normais pendentes detalhados:', pendingNormalWithdrawals.map(w => ({
+        id: w.id.slice(-8),
+        username: w.username,
+        amount: w.amount,
+        status: w.status
+      })));
+      
+      console.log('📋 Saques de afiliados pendentes detalhados:', pendingAffiliateWithdrawals.map(w => ({
+        id: w.id.slice(-8),
+        username: w.username,
+        amount: w.amount,
+        status: w.status
+      })));
 
       const allMiners: MinerData[] = [];
       usersData.forEach(user => {
@@ -246,7 +271,6 @@ const AdminDashboard = () => {
 
       const activeMiners = allMiners.filter(m => m.isActive).length;
 
-      // Log das estatísticas para debug
       console.log('📊 Estatísticas finais:', {
         totalPendingWithdrawals,
         pendingWithdrawalAmount,
@@ -413,7 +437,7 @@ const AdminDashboard = () => {
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = withdrawalFilter === 'all' || 
                          withdrawal.status === withdrawalFilter ||
-                         (withdrawalFilter === 'pending' && (withdrawal.status === 'pending' || withdrawal.status === 'pendente'));
+                         (withdrawalFilter === 'pending' && isPendingStatus(withdrawal.status));
     return matchesSearch && matchesFilter;
   });
 
@@ -423,7 +447,7 @@ const AdminDashboard = () => {
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = withdrawalFilter === 'all' || 
                          withdrawal.status === withdrawalFilter ||
-                         (withdrawalFilter === 'pending' && (withdrawal.status === 'pending' || withdrawal.status === 'pendente'));
+                         (withdrawalFilter === 'pending' && isPendingStatus(withdrawal.status));
     return matchesSearch && matchesFilter;
   });
 
@@ -487,7 +511,6 @@ const AdminDashboard = () => {
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
-                size="sm" 
                 className="border-gold-400/50 text-gold-400 hover:bg-gold-400/10" 
                 onClick={loadAdminData}
               >
@@ -496,7 +519,6 @@ const AdminDashboard = () => {
               </Button>
               <Button 
                 variant="outline" 
-                size="sm" 
                 className="border-blue-400/50 text-blue-400 hover:bg-blue-400/10"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -576,8 +598,8 @@ const AdminDashboard = () => {
               <div className="text-3xl font-bold text-white">{stats.pendingWithdrawals}</div>
               <p className="text-xs text-red-300">Valor: {stats.pendingWithdrawalAmount.toFixed(0)} MT</p>
               <div className="text-xs text-red-200 mt-1">
-                Normal: {withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length} | 
-                Afiliados: {affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length}
+                Normal: {withdrawals.filter(w => isPendingStatus(w.status)).length} | 
+                Afiliados: {affiliateWithdrawals.filter(w => isPendingStatus(w.status)).length}
               </div>
             </CardContent>
           </Card>
@@ -608,8 +630,8 @@ const AdminDashboard = () => {
               value="withdrawals" 
               className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900 rounded-lg transition-all relative"
             >
-              💰 Saques ({withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})
-              {withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length > 0 && (
+              💰 Saques ({withdrawals.filter(w => isPendingStatus(w.status)).length})
+              {withdrawals.filter(w => isPendingStatus(w.status)).length > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </TabsTrigger>
@@ -617,8 +639,8 @@ const AdminDashboard = () => {
               value="affiliate-withdrawals" 
               className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900 rounded-lg transition-all relative"
             >
-              🌟 Saques Afiliados ({affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})
-              {affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length > 0 && (
+              🌟 Saques Afiliados ({affiliateWithdrawals.filter(w => isPendingStatus(w.status)).length})
+              {affiliateWithdrawals.filter(w => isPendingStatus(w.status)).length > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </TabsTrigger>
@@ -675,7 +697,7 @@ const AdminDashboard = () => {
                 <CardContent>
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {[...withdrawals, ...affiliateWithdrawals]
-                      .filter(w => w.status === 'pending' || w.status === 'pendente')
+                      .filter(w => isPendingStatus(w.status))
                       .slice(0, 8)
                       .map((withdrawal) => (
                       <div key={withdrawal.id} className="flex items-center justify-between p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
@@ -697,7 +719,6 @@ const AdminDashboard = () => {
                             <div className="text-xs text-gray-400">{withdrawal.phone}</div>
                           </div>
                           <Button 
-                            size="sm" 
                             variant="outline"
                             className="border-gold-400/50 text-gold-400 hover:bg-gold-400/10"
                             onClick={() => handleProcessWithdrawal(withdrawal)}
@@ -931,7 +952,7 @@ const AdminDashboard = () => {
                     className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
                   >
                     <option value="all">Todos ({withdrawals.length})</option>
-                    <option value="pending">🔄 Pendente ({withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})</option>
+                    <option value="pending">🔄 Pendente ({withdrawals.filter(w => isPendingStatus(w.status)).length})</option>
                     <option value="completed">✅ Pago ({withdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">❌ Rejeitado ({withdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
@@ -962,7 +983,7 @@ const AdminDashboard = () => {
                       <tbody>
                         {filteredWithdrawals.map((withdrawal) => (
                           <tr key={withdrawal.id} className={`border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors ${
-                            withdrawal.status === 'pending' || withdrawal.status === 'pendente' ? 'bg-yellow-900/10' : ''
+                            isPendingStatus(withdrawal.status) ? 'bg-yellow-900/10' : ''
                           }`}>
                             <td className="py-4 px-3">
                               <div className="flex items-center gap-3">
@@ -1015,10 +1036,9 @@ const AdminDashboard = () => {
                             </td>
                             <td className="py-4 px-3">
                               <div className="flex gap-1">
-                                {withdrawal.status === 'pending' || withdrawal.status === 'pendente' && (
+                                {isPendingStatus(withdrawal.status) && (
                                   <>
                                     <Button 
-                                      size="sm" 
                                       className="bg-green-600 hover:bg-green-700 text-white px-2"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
                                       title="Marcar como pago"
@@ -1026,7 +1046,6 @@ const AdminDashboard = () => {
                                       <CheckCircle className="h-3 w-3" />
                                     </Button>
                                     <Button 
-                                      size="sm" 
                                       className="bg-red-600 hover:bg-red-700 text-white px-2"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
                                       title="Rejeitar saque"
@@ -1036,7 +1055,6 @@ const AdminDashboard = () => {
                                   </>
                                 )}
                                 <Button 
-                                  size="sm" 
                                   variant="outline"
                                   className="border-blue-400/50 text-blue-400 hover:bg-blue-400/10 px-2"
                                   onClick={() => handleProcessWithdrawal(withdrawal)}
@@ -1076,7 +1094,7 @@ const AdminDashboard = () => {
                     className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
                   >
                     <option value="all">Todos ({affiliateWithdrawals.length})</option>
-                    <option value="pending">🔄 Pendente ({affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})</option>
+                    <option value="pending">🔄 Pendente ({affiliateWithdrawals.filter(w => isPendingStatus(w.status)).length})</option>
                     <option value="completed">✅ Pago ({affiliateWithdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">❌ Rejeitado ({affiliateWithdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
@@ -1107,7 +1125,7 @@ const AdminDashboard = () => {
                       <tbody>
                         {filteredAffiliateWithdrawals.map((withdrawal) => (
                           <tr key={withdrawal.id} className={`border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors ${
-                            withdrawal.status === 'pending' || withdrawal.status === 'pendente' ? 'bg-gold-900/10' : ''
+                            isPendingStatus(withdrawal.status) ? 'bg-gold-900/10' : ''
                           }`}>
                             <td className="py-4 px-3">
                               <div className="flex items-center gap-3">
@@ -1164,10 +1182,9 @@ const AdminDashboard = () => {
                             </td>
                             <td className="py-4 px-3">
                               <div className="flex gap-1">
-                                {withdrawal.status === 'pending' || withdrawal.status === 'pendente' && (
+                                {isPendingStatus(withdrawal.status) && (
                                   <>
                                     <Button 
-                                      size="sm" 
                                       className="bg-green-600 hover:bg-green-700 text-white px-2"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
                                       title="Marcar como pago"
@@ -1175,7 +1192,6 @@ const AdminDashboard = () => {
                                       <CheckCircle className="h-3 w-3" />
                                     </Button>
                                     <Button 
-                                      size="sm" 
                                       className="bg-red-600 hover:bg-red-700 text-white px-2"
                                       onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
                                       title="Rejeitar saque"
@@ -1185,7 +1201,6 @@ const AdminDashboard = () => {
                                   </>
                                 )}
                                 <Button 
-                                  size="sm" 
                                   variant="outline"
                                   className="border-gold-400/50 text-gold-400 hover:bg-gold-400/10 px-2"
                                   onClick={() => handleProcessWithdrawal(withdrawal)}
