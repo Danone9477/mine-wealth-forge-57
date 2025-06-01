@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -124,7 +123,6 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadAdminData();
-    // Auto-refresh dados a cada 30 segundos
     const interval = setInterval(loadAdminData, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -134,7 +132,6 @@ const AdminDashboard = () => {
       setLoading(true);
       console.log('🔄 Carregando dados administrativos...');
       
-      // Carregar usuários
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const usersData: UserData[] = usersSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -146,7 +143,6 @@ const AdminDashboard = () => {
         } as UserData;
       });
 
-      // Separar usuários normais e afiliados
       const regularUsers = usersData.filter(user => !user.affiliateCode);
       const affiliateUsers = usersData.filter(user => user.affiliateCode);
       
@@ -155,7 +151,6 @@ const AdminDashboard = () => {
       console.log('👥 Usuários carregados:', regularUsers.length);
       console.log('⭐ Afiliados carregados:', affiliateUsers.length);
 
-      // Carregar transações
       const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
       const transactionsData: TransactionData[] = transactionsSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -169,7 +164,6 @@ const AdminDashboard = () => {
         } as TransactionData;
       });
       
-      // Ordenar por timestamp (mais recentes primeiro)
       transactionsData.sort((a, b) => {
         const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
         const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
@@ -179,7 +173,6 @@ const AdminDashboard = () => {
       setTransactions(transactionsData);
       console.log('💳 Transações carregadas:', transactionsData.length);
 
-      // Separar saques por tipo
       const allWithdrawals = transactionsData.filter(t => t.type === 'withdrawal');
       const normalWithdrawals = allWithdrawals.filter(t => !t.source || t.source === 'balance');
       const affiliateWithdrawalsData = allWithdrawals.filter(t => t.source === 'affiliate');
@@ -191,7 +184,6 @@ const AdminDashboard = () => {
       console.log('⭐ Saques de afiliados:', affiliateWithdrawalsData.length);
       console.log('⏳ Saques pendentes:', allWithdrawals.filter(w => w.status === 'pending').length);
 
-      // Carregar mineradores
       const allMiners: MinerData[] = [];
       usersData.forEach(user => {
         if (user.miners && user.miners.length > 0) {
@@ -206,7 +198,6 @@ const AdminDashboard = () => {
       });
       setMiners(allMiners);
 
-      // Calcular estatísticas avançadas
       const today = new Date().toDateString();
       const todayRegistrations = usersData.filter(user => 
         user.createdAt && new Date(user.createdAt).toDateString() === today
@@ -244,12 +235,6 @@ const AdminDashboard = () => {
         totalAffiliateCommissions
       });
 
-      console.log('📊 Estatísticas calculadas:', {
-        pendingWithdrawals,
-        pendingWithdrawalAmount,
-        totalProfit: totalDeposits - totalWithdrawals
-      });
-
     } catch (error) {
       console.error('❌ Erro ao carregar dados do admin:', error);
       toast({
@@ -276,7 +261,6 @@ const AdminDashboard = () => {
     try {
       await updateDoc(doc(db, 'users', userId), updatedData);
       
-      // Atualizar estado local
       setUsers(prev => prev.map(user => 
         user.id === userId ? { ...user, ...updatedData } : user
       ));
@@ -309,7 +293,6 @@ const AdminDashboard = () => {
         processedBy: 'admin'
       });
       
-      // Atualizar todos os estados que contêm transações
       const updateTransaction = (transaction: TransactionData) => 
         transaction.id === transactionId 
           ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
@@ -325,7 +308,6 @@ const AdminDashboard = () => {
       });
       
       setWithdrawalModalOpen(false);
-      // Recarregar dados para atualizar estatísticas
       await loadAdminData();
     } catch (error) {
       console.error('❌ Erro ao processar saque:', error);
@@ -629,7 +611,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-gold-400 font-bold">{transaction.amount} MT</div>
-                          <Badge className={getStatusColor(transaction.status)} size="sm">
+                          <Badge className={getStatusColor(transaction.status)}>
                             {transaction.status}
                           </Badge>
                         </div>
