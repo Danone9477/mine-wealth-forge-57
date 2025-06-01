@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,10 @@ import {
   UserCheck,
   UserX,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Clock,
+  Phone,
+  MapPin
 } from "lucide-react";
 import { collection, getDocs, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -50,13 +54,20 @@ interface UserData {
 interface TransactionData {
   id: string;
   username?: string;
+  email?: string;
   type?: string;
   amount?: number;
   status?: string;
   method?: string;
   phone?: string;
+  address?: string;
+  pixKey?: string;
   timestamp?: any;
   date: string;
+  processedAt?: string;
+  processedBy?: string;
+  notes?: string;
+  userId?: string;
   [key: string]: any;
 }
 
@@ -73,6 +84,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserData[]>([]);
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [withdrawals, setWithdrawals] = useState<TransactionData[]>([]);
+  const [affiliateWithdrawals, setAffiliateWithdrawals] = useState<TransactionData[]>([]);
   const [miners, setMiners] = useState<MinerData[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -81,16 +94,19 @@ const AdminDashboard = () => {
     activeMiners: 0,
     todayRegistrations: 0,
     pendingWithdrawals: 0,
+    pendingWithdrawalAmount: 0,
     totalProfit: 0,
     systemUptime: 99.9
   });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [withdrawalFilter, setWithdrawalFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionData | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('users');
 
   useEffect(() => {
     loadAdminData();
@@ -120,15 +136,28 @@ const AdminDashboard = () => {
       const transactionsSnapshot = await getDocs(transactionsQuery);
       const transactionsData: TransactionData[] = transactionsSnapshot.docs.map(doc => {
         const data = doc.data();
+        const userData = usersData.find(u => u.id === data.userId);
         return {
           id: doc.id,
           ...data,
+          email: userData?.email || 'N/A',
           date: data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : 'N/A'
         } as TransactionData;
       });
       setTransactions(transactionsData);
 
-      // Carregar mineradores (buscar em todos os usuários)
+      // Separar saques normais e de afiliados
+      const normalWithdrawals = transactionsData.filter(t => 
+        t.type === 'withdrawal' && (!t.source || t.source === 'balance')
+      );
+      const affiliateWithdrawalsData = transactionsData.filter(t => 
+        t.type === 'withdrawal' && t.source === 'affiliate'
+      );
+
+      setWithdrawals(normalWithdrawals);
+      setAffiliateWithdrawals(affiliateWithdrawalsData);
+
+      // Carregar mineradores
       const allMiners: MinerData[] = [];
       usersData.forEach(user => {
         if (user.miners && user.miners.length > 0) {
@@ -160,6 +189,10 @@ const AdminDashboard = () => {
       const pendingWithdrawals = transactionsData
         .filter(t => t.type === 'withdrawal' && t.status === 'pending').length;
 
+      const pendingWithdrawalAmount = transactionsData
+        .filter(t => t.type === 'withdrawal' && t.status === 'pending')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+
       const activeMiners = allMiners.filter(m => m.isActive).length;
 
       setStats({
@@ -169,6 +202,7 @@ const AdminDashboard = () => {
         activeMiners,
         todayRegistrations,
         pendingWithdrawals,
+        pendingWithdrawalAmount,
         totalProfit: totalDeposits - totalWithdrawals,
         systemUptime: 99.9
       });
@@ -199,7 +233,6 @@ const AdminDashboard = () => {
     try {
       await updateDoc(doc(db, 'users', userId), updatedData);
       
-      // Atualizar localmente
       setUsers(prev => prev.map(user => 
         user.id === userId ? { ...user, ...updatedData } : user
       ));
@@ -229,8 +262,19 @@ const AdminDashboard = () => {
         processedBy: 'admin'
       });
       
-      // Atualizar localmente
       setTransactions(prev => prev.map(transaction => 
+        transaction.id === transactionId 
+          ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
+          : transaction
+      ));
+      
+      setWithdrawals(prev => prev.map(transaction => 
+        transaction.id === transactionId 
+          ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
+          : transaction
+      ));
+
+      setAffiliateWithdrawals(prev => prev.map(transaction => 
         transaction.id === transactionId 
           ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
           : transaction
@@ -242,7 +286,7 @@ const AdminDashboard = () => {
       });
       
       setWithdrawalModalOpen(false);
-      loadAdminData(); // Recarregar para atualizar estatísticas
+      loadAdminData();
     } catch (error) {
       console.error('Erro ao processar saque:', error);
       toast({
@@ -257,6 +301,29 @@ const AdminDashboard = () => {
     const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredTransactions = transactions.filter(transaction => {
+    const matchesSearch = transaction.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  const filteredWithdrawals = withdrawals.filter(withdrawal => {
+    const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = withdrawalFilter === 'all' || withdrawal.status === withdrawalFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredAffiliateWithdrawals = affiliateWithdrawals.filter(withdrawal => {
+    const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = withdrawalFilter === 'all' || withdrawal.status === withdrawalFilter;
     return matchesSearch && matchesFilter;
   });
 
@@ -278,6 +345,40 @@ const AdminDashboard = () => {
       case 'withdrawal': return <Banknote className="h-4 w-4" />;
       case 'mining': return <Pickaxe className="h-4 w-4" />;
       default: return <DollarSign className="h-4 w-4" />;
+    }
+  };
+
+  const handleQuickStatusUpdate = async (transactionId: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, 'transactions', transactionId), {
+        status: newStatus,
+        processedAt: new Date().toISOString(),
+        processedBy: 'admin'
+      });
+      
+      // Atualizar estado local
+      const updateTransaction = (transaction: TransactionData) => 
+        transaction.id === transactionId 
+          ? { ...transaction, status: newStatus, processedAt: new Date().toISOString() }
+          : transaction;
+
+      setTransactions(prev => prev.map(updateTransaction));
+      setWithdrawals(prev => prev.map(updateTransaction));
+      setAffiliateWithdrawals(prev => prev.map(updateTransaction));
+      
+      toast({
+        title: "Sucesso",
+        description: `Saque marcado como ${newStatus}`,
+      });
+      
+      loadAdminData();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -316,6 +417,19 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* Search Bar Global */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Pesquisar usuários, emails, transações..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-700 border-gray-600 text-white"
+            />
+          </div>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 sm:mb-8">
           <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50">
@@ -347,13 +461,13 @@ const AdminDashboard = () => {
           <Card className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 border-yellow-700/50">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-yellow-400 text-sm font-medium">Mineradores Ativos</CardTitle>
-                <Pickaxe className="h-4 w-4 text-yellow-400" />
+                <CardTitle className="text-yellow-400 text-sm font-medium">Saques Pendentes</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-400" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.activeMiners}</div>
-              <p className="text-xs text-yellow-300">Saques pendentes: {stats.pendingWithdrawals}</p>
+              <div className="text-2xl font-bold text-white">{stats.pendingWithdrawals}</div>
+              <p className="text-xs text-yellow-300">Valor: {stats.pendingWithdrawalAmount.toFixed(0)} MT</p>
             </CardContent>
           </Card>
 
@@ -372,19 +486,22 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-gray-800 border-gray-700">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gray-800 border-gray-700">
             <TabsTrigger value="users" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Usuários
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Transações
             </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
+              Saques
+            </TabsTrigger>
+            <TabsTrigger value="affiliate-withdrawals" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
+              Saques Afiliados
+            </TabsTrigger>
             <TabsTrigger value="miners" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Mineradores
-            </TabsTrigger>
-            <TabsTrigger value="affiliates" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
-              Afiliados
             </TabsTrigger>
           </TabsList>
 
@@ -484,7 +601,7 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="text-white">Transações</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Monitore e processe todas as transações
+                  Monitore todas as transações do sistema
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -493,17 +610,18 @@ const AdminDashboard = () => {
                     <thead>
                       <tr className="border-b border-gray-700">
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Email</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Tipo</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium hidden sm:table-cell">Data</th>
                         <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.map((transaction) => (
+                      {filteredTransactions.map((transaction) => (
                         <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                           <td className="py-3 px-2 text-white">{transaction.username || 'N/A'}</td>
+                          <td className="py-3 px-2 text-gray-300">{transaction.email}</td>
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-2">
                               {getTypeIcon(transaction.type)}
@@ -517,17 +635,207 @@ const AdminDashboard = () => {
                               {transaction.status}
                             </Badge>
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Withdrawals Tab */}
+          <TabsContent value="withdrawals" className="space-y-6">
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-white">Saques de Usuários</CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Processe e gerencie saques do saldo principal
+                    </CardDescription>
+                  </div>
+                  <select
+                    value={withdrawalFilter}
+                    onChange={(e) => setWithdrawalFilter(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white text-sm"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="pending">Pendente</option>
+                    <option value="completed">Aprovado</option>
+                    <option value="rejected">Rejeitado</option>
+                  </select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredWithdrawals.map((withdrawal) => (
+                        <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                           <td className="py-3 px-2">
-                            {transaction.type === 'withdrawal' && transaction.status === 'pending' && (
+                            <div>
+                              <div className="text-white font-medium">{withdrawal.username || 'N/A'}</div>
+                              <div className="text-gray-400 text-xs">{withdrawal.email}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-1 text-gray-300">
+                              <Phone className="h-3 w-3" />
+                              <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
+                          <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
+                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
+                          <td className="py-3 px-2">
+                            <Badge className={getStatusColor(withdrawal.status)}>
+                              {withdrawal.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex gap-1">
+                              {withdrawal.status === 'pending' && (
+                                <>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-7 px-2 text-green-400 hover:bg-green-400/20"
+                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-7 px-2 text-red-400 hover:bg-red-400/20"
+                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
+                                  >
+                                    <AlertCircle className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="ghost" 
                                 className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
-                                onClick={() => handleProcessWithdrawal(transaction)}
+                                onClick={() => handleProcessWithdrawal(withdrawal)}
                               >
-                                Processar
+                                <Eye className="h-3 w-3" />
                               </Button>
-                            )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Affiliate Withdrawals Tab */}
+          <TabsContent value="affiliate-withdrawals" className="space-y-6">
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-white">Saques de Afiliados</CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Processe saques das comissões de afiliados
+                    </CardDescription>
+                  </div>
+                  <select
+                    value={withdrawalFilter}
+                    onChange={(e) => setWithdrawalFilter(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white text-sm"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="pending">Pendente</option>
+                    <option value="completed">Aprovado</option>
+                    <option value="rejected">Rejeitado</option>
+                  </select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAffiliateWithdrawals.map((withdrawal) => (
+                        <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-2">
+                            <div>
+                              <div className="text-gold-400 font-medium">{withdrawal.username || 'N/A'}</div>
+                              <div className="text-gray-400 text-xs">{withdrawal.email}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-1 text-gray-300">
+                              <Phone className="h-3 w-3" />
+                              <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
+                          <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
+                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
+                          <td className="py-3 px-2">
+                            <Badge className={getStatusColor(withdrawal.status)}>
+                              {withdrawal.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex gap-1">
+                              {withdrawal.status === 'pending' && (
+                                <>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-7 px-2 text-green-400 hover:bg-green-400/20"
+                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-7 px-2 text-red-400 hover:bg-red-400/20"
+                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
+                                  >
+                                    <AlertCircle className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
+                                onClick={() => handleProcessWithdrawal(withdrawal)}
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
