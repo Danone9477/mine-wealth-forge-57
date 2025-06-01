@@ -34,13 +34,25 @@ const Dashboard = () => {
   const completeTask = async () => {
     if (!userData || !canCompleteTask) return;
 
-    const taskReward = 25;
+    const baseTaskReward = 25;
+    const minerBonus = userData.miners?.reduce((total, miner) => total + (miner.dailyReturn || 0), 0) || 0;
+    const totalReward = baseTaskReward + minerBonus;
     const today = new Date().toDateString();
     
+    const transaction = {
+      id: Date.now().toString(),
+      type: 'task',
+      amount: totalReward,
+      status: 'success',
+      date: new Date().toISOString(),
+      description: `Tarefa diária completada (${baseTaskReward} MT base + ${minerBonus} MT dos mineradores)`
+    };
+    
     await updateUserData({
-      balance: userData.balance + taskReward,
-      totalEarnings: userData.totalEarnings + taskReward,
-      lastTaskDate: today
+      balance: userData.balance + totalReward,
+      totalEarnings: userData.totalEarnings + totalReward,
+      lastTaskDate: today,
+      transactions: [...(userData.transactions || []), transaction]
     });
     
     setCanCompleteTask(false);
@@ -56,6 +68,8 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  const dailyMinerEarnings = userData.miners?.reduce((acc, miner) => acc + (miner.dailyReturn || 0), 0) || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black py-8 px-4">
@@ -113,9 +127,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-medium">Ganho/Dia</p>
-                  <p className="text-2xl font-bold text-white">
-                    {userData.miners?.reduce((acc, miner) => acc + (miner.dailyReturn || 0), 0) || 0} MT
-                  </p>
+                  <p className="text-2xl font-bold text-white">{dailyMinerEarnings} MT</p>
                 </div>
                 <Clock className="h-8 w-8 text-purple-400" />
               </div>
@@ -175,7 +187,7 @@ const Dashboard = () => {
                   Tarefa Diária
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Complete sua tarefa diária e ganhe 25 MT
+                  Complete sua tarefa diária e ganhe 25 MT + bônus dos mineradores
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -196,7 +208,9 @@ const Dashboard = () => {
                   </div>
                   <Progress value={canCompleteTask ? 0 : 100} className="h-2" />
                   <p className="text-sm text-gray-400">
-                    {canCompleteTask ? 'Clique para completar' : 'Tarefa concluída hoje!'}
+                    {canCompleteTask ? 
+                      `Ganhe ${25 + dailyMinerEarnings} MT hoje!` : 
+                      'Tarefa concluída hoje!'}
                   </p>
                 </div>
               </CardContent>
@@ -227,8 +241,8 @@ const Dashboard = () => {
                   <div className="text-center py-6">
                     <Zap className="h-12 w-12 text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400 mb-4">Nenhum minerador ativo</p>
-                    <Button className="bg-gradient-gold text-gray-900 hover:bg-gold-500">
-                      Comprar Minerador
+                    <Button asChild className="bg-gradient-gold text-gray-900 hover:bg-gold-500">
+                      <a href="/miners">Comprar Minerador</a>
                     </Button>
                   </div>
                 )}
@@ -241,17 +255,17 @@ const Dashboard = () => {
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-white mb-4">Ações Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Button className="bg-gradient-gold text-gray-900 hover:bg-gold-500 h-16">
-              Comprar Minerador
+            <Button asChild className="bg-gradient-gold text-gray-900 hover:bg-gold-500 h-16">
+              <a href="/miners">Comprar Minerador</a>
             </Button>
-            <Button variant="outline" className="border-green-400 text-green-400 hover:bg-green-400 hover:text-gray-900 h-16">
-              Fazer Depósito
+            <Button asChild variant="outline" className="border-green-400 text-green-400 hover:bg-green-400 hover:text-gray-900 h-16">
+              <a href="/deposit">Fazer Depósito</a>
             </Button>
-            <Button variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-gray-900 h-16">
-              Sacar Fundos
+            <Button asChild variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-gray-900 h-16">
+              <a href="/withdraw">Sacar Fundos</a>
             </Button>
-            <Button variant="outline" className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-gray-900 h-16">
-              Ver Relatórios
+            <Button asChild variant="outline" className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-gray-900 h-16">
+              <a href="/history">Ver Histórico</a>
             </Button>
           </div>
         </div>

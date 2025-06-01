@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ interface UserData {
   totalEarnings: number;
   miners: any[];
   lastTaskDate?: string;
+  transactions?: any[];
 }
 
 interface AuthContextType {
@@ -22,6 +23,7 @@ interface AuthContextType {
   signup: (email: string, password: string, username: string) => Promise<void>;
   login: (emailOrUsername: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   updateUserData: (data: Partial<UserData>) => Promise<void>;
 }
 
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         balance: 0,
         totalEarnings: 0,
         miners: [],
+        transactions: [],
       };
       
       await setDoc(doc(db, 'users', result.user.uid), newUserData);
@@ -99,6 +102,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: "Email de recuperação enviado!",
+        description: "Verifique sua caixa de entrada para redefinir sua senha",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro no envio",
+        description: "Verifique se o email está correto",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const updateUserData = async (data: Partial<UserData>) => {
     if (!user || !userData) return;
     
@@ -143,6 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     login,
     logout,
+    resetPassword,
     updateUserData,
   };
 

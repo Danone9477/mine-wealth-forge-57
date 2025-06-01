@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, Eye, EyeOff } from 'lucide-react';
+import { Coins, Eye, EyeOff, Mail } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -15,7 +15,10 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const { login, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,12 +35,90 @@ const Login = () => {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    
+    try {
+      await resetPassword(resetEmail);
+      setShowResetPassword(false);
+      setResetEmail('');
+    } catch (error) {
+      console.error('Reset password error:', error);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
   };
+
+  if (showResetPassword) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center py-12 px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-gold rounded-full mb-4 animate-glow">
+              <Mail className="w-8 h-8 text-gray-900" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
+              Recuperar Conta
+            </h1>
+            <p className="text-gray-400 mt-2">
+              Digite seu email para redefinir sua senha
+            </p>
+          </div>
+
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="text-center">
+              <CardTitle className="text-white">Redefinir Senha</CardTitle>
+              <CardDescription className="text-gray-400">
+                Enviaremos um link para redefinir sua senha
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail" className="text-gray-300">Email</Label>
+                  <Input
+                    id="resetEmail"
+                    name="resetEmail"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    placeholder="Seu email de cadastro"
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                </Button>
+
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowResetPassword(false)}
+                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  Voltar ao Login
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center py-12 px-4">
@@ -98,6 +179,16 @@ const Login = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(true)}
+                  className="text-sm text-gold-400 hover:text-gold-300"
+                >
+                  Esqueceu a senha?
+                </button>
               </div>
 
               <Button 
