@@ -20,11 +20,28 @@ const Withdraw = () => {
   const canWithdraw = userData?.miners?.length > 0;
 
   const handleWithdraw = async () => {
-    if (!userData || !canWithdraw) return;
+    if (!userData) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Por favor, faça login novamente",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!canWithdraw) {
+      toast({
+        title: "Saque não permitido",
+        description: "Você precisa comprar pelo menos 1 minerador antes de poder fazer saques",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const withdrawAmount = parseFloat(amount);
     
-    if (withdrawAmount < minWithdraw) {
+    // Validações melhoradas
+    if (!amount || isNaN(withdrawAmount) || withdrawAmount < minWithdraw) {
       toast({
         title: "Valor inválido",
         description: `Saque mínimo é de ${minWithdraw} MT`,
@@ -42,10 +59,10 @@ const Withdraw = () => {
       return;
     }
 
-    if (!phone || phone.length < 9) {
+    if (!phone || phone.length !== 9) {
       toast({
         title: "Número inválido",
-        description: "Por favor, insira um número de telefone válido",
+        description: "Por favor, insira um número de telefone válido com 9 dígitos",
         variant: "destructive",
       });
       return;
@@ -62,7 +79,7 @@ const Withdraw = () => {
       return;
     }
 
-    if (!name || name.length < 2) {
+    if (!name || name.trim().length < 2) {
       toast({
         title: "Nome inválido",
         description: "Por favor, insira seu nome completo",
@@ -72,29 +89,31 @@ const Withdraw = () => {
     }
 
     setLoading(true);
+    console.log('Iniciando saque...', { amount: withdrawAmount, phone, name });
 
     try {
       // Simular processamento
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Criar transação pendente - será processada manualmente via Firebase
+      // Criar transação pendente - será processada manualmente
       const transaction = {
         id: Date.now().toString(),
-        type: 'withdraw',
+        type: 'withdraw' as const,
         amount: withdrawAmount,
         phone,
-        name,
-        status: 'pending', // Todos os saques começam como pendentes
+        name: name.trim(),
+        status: 'pending' as const, // Todos os saques começam como pendentes
         date: new Date().toISOString(),
-        description: `Saque para ${name}`,
+        description: `Saque para ${name.trim()}`,
         firebase_id: Date.now().toString(), // ID para rastreamento no Firebase
         processed_date: null // Será preenchido quando for processado
       };
 
       // Deduzir o valor do saldo imediatamente, mas o saque fica pendente
+      const updatedTransactions = [...(userData.transactions || []), transaction];
       await updateUserData({
         balance: userData.balance - withdrawAmount,
-        transactions: [...(userData.transactions || []), transaction]
+        transactions: updatedTransactions
       });
 
       toast({
@@ -106,22 +125,23 @@ const Withdraw = () => {
       setPhone('');
       setName('');
     } catch (error) {
-      console.error('Withdraw error:', error);
+      console.error('Erro no saque:', error);
       
       const failedTransaction = {
         id: Date.now().toString(),
-        type: 'withdraw',
+        type: 'withdraw' as const,
         amount: withdrawAmount,
         phone,
-        name,
-        status: 'failed',
+        name: name.trim(),
+        status: 'failed' as const,
         date: new Date().toISOString(),
-        description: `Falha no saque para ${name}`,
-        error: 'Erro no processamento'
+        description: `Falha no saque para ${name.trim()}`,
+        error: error instanceof Error ? error.message : 'Erro no processamento'
       };
 
+      const updatedTransactions = [...(userData.transactions || []), failedTransaction];
       await updateUserData({
-        transactions: [...(userData.transactions || []), failedTransaction]
+        transactions: updatedTransactions
       });
 
       toast({
@@ -138,7 +158,7 @@ const Withdraw = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-400 mx-auto mb-4"></div>
           <p className="text-gray-400">Carregando...</p>
         </div>
       </div>
@@ -193,7 +213,9 @@ const Withdraw = () => {
                   <h3 className="text-base sm:text-lg font-bold text-red-400">Saque Bloqueado</h3>
                   <p className="text-gray-300 text-sm">
                     Você precisa comprar pelo menos 1 minerador antes de poder fazer saques. 
-                    <a href="/miners" className="text-gold-400 hover:underline ml-1">Compre agora</a>
+                    <Button asChild variant="link" className="text-gold-400 hover:text-gold-300 p-0 ml-1 h-auto">
+                      <a href="/miners">Compre agora</a>
+                    </Button>
                   </p>
                 </div>
               </div>
@@ -221,9 +243,10 @@ const Withdraw = () => {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder={`Mínimo ${minWithdraw} MT`}
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
                     min={minWithdraw}
                     max={userData.balance}
+                    step="0.01"
                     disabled={!canWithdraw}
                   />
                   <p className="text-sm text-gray-400">
@@ -240,7 +263,7 @@ const Withdraw = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Seu nome completo"
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
                     disabled={!canWithdraw}
                   />
                 </div>
@@ -252,9 +275,14 @@ const Withdraw = () => {
                     id="phone"
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="84/85/86/87 XXXXXXX"
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 9) {
+                        setPhone(value);
+                      }
+                    }}
+                    placeholder="84XXXXXXX"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
                     disabled={!canWithdraw}
                     maxLength={9}
                   />
@@ -280,13 +308,21 @@ const Withdraw = () => {
 
                 {/* Submit Button */}
                 <Button 
+                  type="button"
                   onClick={handleWithdraw}
-                  disabled={!canWithdraw || loading || !amount || !phone || !name || parseFloat(amount) < minWithdraw || parseFloat(amount) > userData.balance}
-                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold h-12"
+                  disabled={!canWithdraw || loading || !amount || !phone || !name || parseFloat(amount) < minWithdraw || parseFloat(amount) > userData.balance || isNaN(parseFloat(amount))}
+                  className="w-full bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 font-semibold h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Processando Saque...' : 
-                   !canWithdraw ? 'Compre um Minerador Primeiro' :
-                   `Solicitar Saque de ${amount || '0'} MT`}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                      Processando Saque...
+                    </div>
+                  ) : !canWithdraw ? (
+                    'Compre um Minerador Primeiro'
+                  ) : (
+                    `Solicitar Saque de ${amount || '0'} MT`
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -374,7 +410,7 @@ const Withdraw = () => {
                 ) : (
                   <div className="text-center py-4">
                     <p className="text-gray-400 mb-3 text-sm">Nenhum minerador ativo</p>
-                    <Button asChild className="bg-gradient-gold text-gray-900 hover:bg-gold-500 text-sm">
+                    <Button asChild className="bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 text-sm">
                       <a href="/miners">Comprar Minerador</a>
                     </Button>
                   </div>

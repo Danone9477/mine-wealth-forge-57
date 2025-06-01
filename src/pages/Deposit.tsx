@@ -18,16 +18,24 @@ const Deposit = () => {
 
   const minDeposit = 100;
 
-  // Credenciais da Gibra Pay
+  // Suas credenciais corretas da Gibra Pay
   const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e";
   const WALLET_ID = "9d2cd54d-720b-490f-b0a9-5c9eace02ff4";
 
   const handleDeposit = async () => {
-    if (!userData) return;
+    if (!userData) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Por favor, faça login novamente",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const depositAmount = parseFloat(amount);
     
-    if (depositAmount < minDeposit) {
+    // Validações melhoradas
+    if (!amount || isNaN(depositAmount) || depositAmount < minDeposit) {
       toast({
         title: "Valor inválido",
         description: `Depósito mínimo é de ${minDeposit} MT`,
@@ -36,10 +44,10 @@ const Deposit = () => {
       return;
     }
 
-    if (!phone || phone.length < 9) {
+    if (!phone || phone.length !== 9) {
       toast({
         title: "Número inválido",
-        description: "Por favor, insira um número de telefone válido",
+        description: "Por favor, insira um número de telefone válido com 9 dígitos",
         variant: "destructive",
       });
       return;
@@ -57,34 +65,44 @@ const Deposit = () => {
     }
 
     setLoading(true);
+    console.log('Iniciando depósito...', { amount: depositAmount, phone, method: selectedMethod });
 
     try {
-      // Integração real com a API da Gibra Pay
+      // Integração corrigida com a API da Gibra Pay
+      const requestBody = {
+        "wallet_id": WALLET_ID,
+        "amount": depositAmount,
+        "phone_number": phone
+      };
+
+      console.log('Enviando requisição para Gibra Pay:', requestBody);
+
       const response = await fetch("https://gibrapay.online/v1/transfer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "API-Key": GIBRA_PAY_API_KEY
         },
-        body: JSON.stringify({
-          "wallet_id": WALLET_ID,
-          "amount": depositAmount,
-          "phone_number": phone
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('Status da resposta:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
-      
-      console.log('Gibra Pay Response:', result);
+      console.log('Resposta da Gibra Pay:', result);
 
       // Criar transação baseada na resposta da API
       const transaction = {
         id: result.data?.id || Date.now().toString(),
-        type: 'deposit',
+        type: 'deposit' as const,
         amount: depositAmount,
         method: selectedMethod,
         phone,
-        status: result.status === 'success' ? 'success' : 'failed',
+        status: result.status === 'success' ? 'success' as const : 'failed' as const,
         date: new Date().toISOString(),
         description: `Depósito via ${selectedMethod.toUpperCase()}`,
         gibra_pay_id: result.data?.id,
@@ -93,19 +111,24 @@ const Deposit = () => {
 
       if (result.status === 'success') {
         // Atualizar saldo apenas se o pagamento foi bem-sucedido
+        const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
           balance: userData.balance + depositAmount,
-          transactions: [...(userData.transactions || []), transaction]
+          transactions: updatedTransactions
         });
 
         toast({
           title: "Depósito realizado com sucesso! 🎉",
           description: `${depositAmount} MT foram adicionados à sua conta`,
         });
+
+        setAmount('');
+        setPhone('');
       } else {
         // Adicionar transação falhada ao histórico
+        const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
-          transactions: [...(userData.transactions || []), transaction]
+          transactions: updatedTransactions
         });
 
         toast({
@@ -115,31 +138,30 @@ const Deposit = () => {
         });
       }
 
-      setAmount('');
-      setPhone('');
     } catch (error) {
-      console.error('Deposit error:', error);
+      console.error('Erro detalhado no depósito:', error);
       
       // Adicionar transação falhada em caso de erro de rede
       const failedTransaction = {
         id: Date.now().toString(),
-        type: 'deposit',
+        type: 'deposit' as const,
         amount: depositAmount,
         method: selectedMethod,
         phone,
-        status: 'failed',
+        status: 'failed' as const,
         date: new Date().toISOString(),
         description: `Falha no depósito via ${selectedMethod.toUpperCase()}`,
-        error: 'Erro de conexão'
+        error: error instanceof Error ? error.message : 'Erro de conexão'
       };
 
+      const updatedTransactions = [...(userData.transactions || []), failedTransaction];
       await updateUserData({
-        transactions: [...(userData.transactions || []), failedTransaction]
+        transactions: updatedTransactions
       });
 
       toast({
         title: "Erro de conexão",
-        description: "Não foi possível conectar ao serviço de pagamento. Tente novamente.",
+        description: "Não foi possível conectar ao serviço de pagamento. Verifique sua conexão e tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -151,7 +173,7 @@ const Deposit = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-400 mx-auto mb-4"></div>
           <p className="text-gray-400">Carregando...</p>
         </div>
       </div>
@@ -193,11 +215,12 @@ const Deposit = () => {
                   <Label className="text-gray-300">Método de Pagamento</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <Button
+                      type="button"
                       variant={selectedMethod === 'emola' ? 'default' : 'outline'}
                       onClick={() => setSelectedMethod('emola')}
                       className={`h-14 sm:h-16 ${selectedMethod === 'emola' 
-                        ? 'bg-gradient-gold text-gray-900' 
-                        : 'border-gray-600 text-gray-300'}`}
+                        ? 'bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700' 
+                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
                     >
                       <div className="text-center">
                         <Smartphone className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1" />
@@ -205,11 +228,12 @@ const Deposit = () => {
                       </div>
                     </Button>
                     <Button
+                      type="button"
                       variant={selectedMethod === 'mpesa' ? 'default' : 'outline'}
                       onClick={() => setSelectedMethod('mpesa')}
                       className={`h-14 sm:h-16 ${selectedMethod === 'mpesa' 
-                        ? 'bg-gradient-gold text-gray-900' 
-                        : 'border-gray-600 text-gray-300'}`}
+                        ? 'bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700' 
+                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
                     >
                       <div className="text-center">
                         <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1" />
@@ -228,8 +252,9 @@ const Deposit = () => {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder={`Mínimo ${minDeposit} MT`}
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
                     min={minDeposit}
+                    step="0.01"
                   />
                   <p className="text-sm text-gray-400">
                     Depósito mínimo: {minDeposit} MT
@@ -245,9 +270,14 @@ const Deposit = () => {
                     id="phone"
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="84/85/86/87 XXXXXXX"
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 9) {
+                        setPhone(value);
+                      }
+                    }}
+                    placeholder="84XXXXXXX"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 focus:ring-gold-400"
                     maxLength={9}
                   />
                   <p className="text-xs text-gray-400">
@@ -257,11 +287,19 @@ const Deposit = () => {
 
                 {/* Submit Button */}
                 <Button 
+                  type="button"
                   onClick={handleDeposit}
-                  disabled={loading || !amount || !phone || parseFloat(amount) < minDeposit}
-                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold h-12"
+                  disabled={loading || !amount || !phone || parseFloat(amount) < minDeposit || isNaN(parseFloat(amount))}
+                  className="w-full bg-gradient-to-r from-gold-400 to-gold-600 text-gray-900 hover:from-gold-500 hover:to-gold-700 font-semibold h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Processando Depósito...' : `Depositar ${amount || '0'} MT`}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                      Processando Depósito...
+                    </div>
+                  ) : (
+                    `Depositar ${amount || '0'} MT`
+                  )}
                 </Button>
               </CardContent>
             </Card>
