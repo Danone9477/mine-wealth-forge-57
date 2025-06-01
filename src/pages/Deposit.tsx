@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,7 @@ const Deposit = () => {
     
     const depositAmount = parseFloat(amount);
     
-    // Validações melhoradas
+    // Validações básicas apenas
     if (!amount || isNaN(depositAmount) || depositAmount < minDeposit) {
       toast({
         title: "Valor inválido",
@@ -53,29 +52,29 @@ const Deposit = () => {
       return;
     }
 
-    // Validar formato do número (deve começar com 84, 85, 86, ou 87)
-    const phoneRegex = /^(84|85|86|87)\d{7}$/;
-    if (!phoneRegex.test(phone)) {
-      toast({
-        title: "Número inválido",
-        description: "O número deve começar com 84, 85, 86 ou 87 e ter 9 dígitos",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
-    console.log('Iniciando depósito...', { amount: depositAmount, phone, method: selectedMethod });
+    console.log('=== INICIANDO DEPÓSITO ===');
+    console.log('Valor:', depositAmount);
+    console.log('Telefone:', phone);
+    console.log('Método:', selectedMethod);
+    console.log('API Key:', GIBRA_PAY_API_KEY);
+    console.log('Wallet ID:', WALLET_ID);
 
     try {
-      // Integração corrigida com a API da Gibra Pay
+      // Payload exato conforme documentação
       const requestBody = {
-        "wallet_id": WALLET_ID,
-        "amount": depositAmount,
-        "phone_number": phone
+        wallet_id: WALLET_ID,
+        amount: depositAmount,
+        phone_number: phone
       };
 
-      console.log('Enviando requisição para Gibra Pay:', requestBody);
+      console.log('=== ENVIANDO REQUISIÇÃO ===');
+      console.log('URL:', "https://gibrapay.online/v1/transfer");
+      console.log('Body:', JSON.stringify(requestBody, null, 2));
+      console.log('Headers:', {
+        "Content-Type": "application/json",
+        "API-Key": GIBRA_PAY_API_KEY
+      });
 
       const response = await fetch("https://gibrapay.online/v1/transfer", {
         method: "POST",
@@ -86,16 +85,23 @@ const Deposit = () => {
         body: JSON.stringify(requestBody)
       });
 
-      console.log('Status da resposta:', response.status);
+      console.log('=== RESPOSTA RECEBIDA ===');
+      console.log('Status:', response.status);
+      console.log('Status Text:', response.statusText);
+      console.log('Headers:', response.headers);
 
+      // Verificar se a resposta é válida
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.log('Erro na resposta:', errorText);
+        throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('Resposta da Gibra Pay:', result);
+      console.log('=== RESULTADO FINAL ===');
+      console.log('Resultado completo:', JSON.stringify(result, null, 2));
 
-      // Criar transação baseada na resposta da API
+      // Criar transação baseada na resposta
       const transaction = {
         id: result.data?.id || Date.now().toString(),
         type: 'deposit' as const,
@@ -106,11 +112,14 @@ const Deposit = () => {
         date: new Date().toISOString(),
         description: `Depósito via ${selectedMethod.toUpperCase()}`,
         gibra_pay_id: result.data?.id,
-        gibra_pay_status: result.data?.status
+        gibra_pay_status: result.data?.status,
+        gibra_response: result
       };
 
+      console.log('Transação criada:', transaction);
+
       if (result.status === 'success') {
-        // Atualizar saldo apenas se o pagamento foi bem-sucedido
+        // Sucesso - atualizar saldo
         const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
           balance: userData.balance + depositAmount,
@@ -125,7 +134,7 @@ const Deposit = () => {
         setAmount('');
         setPhone('');
       } else {
-        // Adicionar transação falhada ao histórico
+        // Falha reportada pela API
         const updatedTransactions = [...(userData.transactions || []), transaction];
         await updateUserData({
           transactions: updatedTransactions
@@ -139,9 +148,11 @@ const Deposit = () => {
       }
 
     } catch (error) {
-      console.error('Erro detalhado no depósito:', error);
+      console.error('=== ERRO COMPLETO ===');
+      console.error('Erro:', error);
+      console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
       
-      // Adicionar transação falhada em caso de erro de rede
+      // Adicionar transação falhada em caso de erro
       const failedTransaction = {
         id: Date.now().toString(),
         type: 'deposit' as const,
@@ -151,7 +162,8 @@ const Deposit = () => {
         status: 'failed' as const,
         date: new Date().toISOString(),
         description: `Falha no depósito via ${selectedMethod.toUpperCase()}`,
-        error: error instanceof Error ? error.message : 'Erro de conexão'
+        error: error instanceof Error ? error.message : 'Erro de conexão',
+        error_details: error instanceof Error ? error.stack : 'N/A'
       };
 
       const updatedTransactions = [...(userData.transactions || []), failedTransaction];
@@ -159,13 +171,26 @@ const Deposit = () => {
         transactions: updatedTransactions
       });
 
+      let errorMessage = "Erro de conexão com o serviço de pagamento.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('fetch')) {
+          errorMessage = "Erro de rede. Verifique sua conexão e tente novamente.";
+        } else if (error.message.includes('HTTP')) {
+          errorMessage = "Erro no servidor de pagamento. Tente novamente.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       toast({
-        title: "Erro de conexão",
-        description: "Não foi possível conectar ao serviço de pagamento. Verifique sua conexão e tente novamente.",
+        title: "Erro no depósito",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
+      console.log('=== DEPÓSITO FINALIZADO ===');
     }
   };
 
