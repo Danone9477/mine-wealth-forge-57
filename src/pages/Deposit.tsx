@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { CreditCard, Smartphone, Shield, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { CreditCard, Smartphone, Shield, Clock, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const Deposit = () => {
@@ -18,7 +18,7 @@ const Deposit = () => {
 
   const minDeposit = 100;
 
-  // Credenciais atualizadas da Gibra Pay
+  // Credenciais da Gibra Pay
   const GIBRA_PAY_API_KEY = "14980a4bce3524a7547214f7b874a105693491a367c746a113c20dfaf1af77cf9fb60e5898146bac57165ef2c4fac50fd74180b8345bc3bba0504a5d4632267e";
   const WALLET_ID = "9d2cd54d-720b-490f-b0a9-5c9eace02ff4";
 
@@ -176,23 +176,6 @@ const Deposit = () => {
             <span className="text-green-400 font-semibold text-sm sm:text-base">Saldo atual: {userData.balance} MT</span>
           </div>
         </div>
-
-        {/* API Key Warning */}
-        {GIBRA_PAY_API_KEY === "SUA_API_KEY_AQUI" && (
-          <Card className="bg-red-900/20 border-red-700 mb-6">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-400 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-bold text-red-400">Configuração Necessária</h3>
-                  <p className="text-gray-300 text-sm sm:text-base">
-                    Configure sua API Key da Gibra Pay no código para habilitar depósitos reais.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Deposit Form */}
