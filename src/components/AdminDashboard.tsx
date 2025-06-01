@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,11 +31,49 @@ import { toast } from '@/hooks/use-toast';
 import EditUserModal from './EditUserModal';
 import ProcessWithdrawalModal from './ProcessWithdrawalModal';
 
+interface UserData {
+  id: string;
+  username?: string;
+  email?: string;
+  balance?: number;
+  affiliateBalance?: number;
+  status?: string;
+  canWithdraw?: boolean;
+  miners?: any[];
+  createdAt?: any;
+  joinDate: string;
+  affiliateCode?: string;
+  affiliateStats?: any;
+  [key: string]: any;
+}
+
+interface TransactionData {
+  id: string;
+  username?: string;
+  type?: string;
+  amount?: number;
+  status?: string;
+  method?: string;
+  phone?: string;
+  timestamp?: any;
+  date: string;
+  [key: string]: any;
+}
+
+interface MinerData {
+  id?: string;
+  type?: string;
+  isActive?: boolean;
+  userId: string;
+  username: string;
+  [key: string]: any;
+}
+
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [miners, setMiners] = useState([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [miners, setMiners] = useState<MinerData[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDeposits: 0,
@@ -50,8 +87,8 @@ const AdminDashboard = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionData | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
 
@@ -65,11 +102,14 @@ const AdminDashboard = () => {
       
       // Carregar usuários
       const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        joinDate: doc.data().createdAt ? new Date(doc.data().createdAt).toLocaleDateString('pt-BR') : 'N/A'
-      }));
+      const usersData: UserData[] = usersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          joinDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : 'N/A'
+        } as UserData;
+      });
       setUsers(usersData);
 
       // Carregar transações
@@ -78,22 +118,25 @@ const AdminDashboard = () => {
         orderBy('timestamp', 'desc')
       );
       const transactionsSnapshot = await getDocs(transactionsQuery);
-      const transactionsData = transactionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        date: new Date(doc.data().timestamp).toLocaleString('pt-BR')
-      }));
+      const transactionsData: TransactionData[] = transactionsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : 'N/A'
+        } as TransactionData;
+      });
       setTransactions(transactionsData);
 
       // Carregar mineradores (buscar em todos os usuários)
-      const allMiners = [];
+      const allMiners: MinerData[] = [];
       usersData.forEach(user => {
         if (user.miners && user.miners.length > 0) {
           user.miners.forEach(miner => {
             allMiners.push({
               ...miner,
               userId: user.id,
-              username: user.username
+              username: user.username || 'N/A'
             });
           });
         }
@@ -108,11 +151,11 @@ const AdminDashboard = () => {
 
       const totalDeposits = transactionsData
         .filter(t => t.type === 'deposit' && t.status === 'completed')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const totalWithdrawals = transactionsData
         .filter(t => t.type === 'withdrawal' && t.status === 'completed')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const pendingWithdrawals = transactionsData
         .filter(t => t.type === 'withdrawal' && t.status === 'pending').length;
@@ -142,17 +185,17 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleEditUser = (user) => {
+  const handleEditUser = (user: UserData) => {
     setSelectedUser(user);
     setEditModalOpen(true);
   };
 
-  const handleProcessWithdrawal = (transaction) => {
+  const handleProcessWithdrawal = (transaction: TransactionData) => {
     setSelectedTransaction(transaction);
     setWithdrawalModalOpen(true);
   };
 
-  const handleUserUpdate = async (userId, updatedData) => {
+  const handleUserUpdate = async (userId: string, updatedData: any) => {
     try {
       await updateDoc(doc(db, 'users', userId), updatedData);
       
@@ -177,7 +220,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleWithdrawalUpdate = async (transactionId, status, notes = '') => {
+  const handleWithdrawalUpdate = async (transactionId: string, status: string, notes = '') => {
     try {
       await updateDoc(doc(db, 'transactions', transactionId), {
         status,
@@ -217,7 +260,7 @@ const AdminDashboard = () => {
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status?: string) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'suspended': return 'bg-red-500/20 text-red-400 border-red-500/50';
@@ -229,7 +272,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const getTypeIcon = (type) => {
+  const getTypeIcon = (type?: string) => {
     switch (type) {
       case 'deposit': return <CreditCard className="h-4 w-4" />;
       case 'withdrawal': return <Banknote className="h-4 w-4" />;
