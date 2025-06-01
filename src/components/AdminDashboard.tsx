@@ -127,11 +127,16 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Função auxiliar para verificar se um status é pendente
+  // Função melhorada para verificar se um status é pendente
   const isPendingStatus = (status?: string) => {
-    if (!status) return false;
+    if (!status) {
+      console.log('🔍 Status is null/undefined');
+      return false;
+    }
     const normalizedStatus = status.toLowerCase().trim();
-    return normalizedStatus === 'pending' || normalizedStatus === 'pendente';
+    const isPending = normalizedStatus === 'pending' || normalizedStatus === 'pendente';
+    console.log(`🔍 Checking status: "${status}" -> normalized: "${normalizedStatus}" -> isPending: ${isPending}`);
+    return isPending;
   };
 
   const loadAdminData = async () => {
@@ -178,62 +183,80 @@ const AdminDashboard = () => {
       });
       
       setTransactions(transactionsData);
-      console.log('💳 Transações carregadas:', transactionsData.length);
+      console.log('💳 Total de transações carregadas:', transactionsData.length);
 
-      // Filtrar saques mais precisamente
-      const allWithdrawals = transactionsData.filter(t => 
-        t.type === 'withdrawal' || t.type === 'saque'
-      );
+      // DEBUG: Verificar TODOS os tipos de transação
+      const typeBreakdown = transactionsData.reduce((acc, t) => {
+        acc[t.type || 'undefined'] = (acc[t.type || 'undefined'] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('📊 Breakdown de tipos de transação:', typeBreakdown);
+
+      // DEBUG: Verificar TODOS os status
+      const statusBreakdown = transactionsData.reduce((acc, t) => {
+        acc[t.status || 'undefined'] = (acc[t.status || 'undefined'] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('📊 Breakdown de status:', statusBreakdown);
+
+      // Filtrar saques com critério mais amplo - incluir variações
+      const allWithdrawals = transactionsData.filter(t => {
+        const type = t.type?.toLowerCase();
+        const isWithdrawal = type === 'withdrawal' || type === 'saque' || type === 'withdraw';
+        if (isWithdrawal) {
+          console.log(`💰 Saque encontrado: ID ${t.id.slice(-8)}, tipo: ${t.type}, status: ${t.status}, amount: ${t.amount}, source: ${t.source}`);
+        }
+        return isWithdrawal;
+      });
       
-      console.log('🔍 Todos os saques encontrados:', allWithdrawals.length);
-      console.log('📊 Detalhes dos saques:', allWithdrawals.map(w => ({
-        id: w.id.slice(-8),
-        username: w.username,
-        amount: w.amount,
-        status: w.status,
-        source: w.source,
-        isPending: isPendingStatus(w.status)
-      })));
+      console.log('🔍 TOTAL de saques encontrados:', allWithdrawals.length);
       
       // Separar saques normais e de afiliados
       const normalWithdrawals = allWithdrawals.filter(t => 
-        !t.source || t.source === 'balance' || t.source === 'main'
+        !t.source || t.source === 'balance' || t.source === 'main' || t.source === 'principal'
       );
       
       const affiliateWithdrawalsData = allWithdrawals.filter(t => 
-        t.source === 'affiliate' || t.source === 'commission'
+        t.source === 'affiliate' || t.source === 'commission' || t.source === 'afiliado'
       );
 
       setWithdrawals(normalWithdrawals);
       setAffiliateWithdrawals(affiliateWithdrawalsData);
       
-      console.log('💰 Saques normais:', normalWithdrawals.length);
-      console.log('⭐ Saques de afiliados:', affiliateWithdrawalsData.length);
+      console.log('💰 Saques normais encontrados:', normalWithdrawals.length);
+      console.log('⭐ Saques de afiliados encontrados:', affiliateWithdrawalsData.length);
 
-      // Contar saques pendentes usando a função auxiliar
-      const pendingNormalWithdrawals = normalWithdrawals.filter(w => isPendingStatus(w.status));
-      const pendingAffiliateWithdrawals = affiliateWithdrawalsData.filter(w => isPendingStatus(w.status));
+      // Contar saques pendentes com log detalhado
+      const pendingNormalWithdrawals = normalWithdrawals.filter(w => {
+        const isPending = isPendingStatus(w.status);
+        console.log(`🔍 Saque normal ${w.id.slice(-8)}: status="${w.status}", isPending=${isPending}`);
+        return isPending;
+      });
+      
+      const pendingAffiliateWithdrawals = affiliateWithdrawalsData.filter(w => {
+        const isPending = isPendingStatus(w.status);
+        console.log(`🔍 Saque afiliado ${w.id.slice(-8)}: status="${w.status}", isPending=${isPending}`);
+        return isPending;
+      });
+      
       const totalPendingWithdrawals = pendingNormalWithdrawals.length + pendingAffiliateWithdrawals.length;
       
-      console.log('⏳ Saques normais pendentes:', pendingNormalWithdrawals.length);
-      console.log('⏳ Saques de afiliados pendentes:', pendingAffiliateWithdrawals.length);
-      console.log('⏳ Total de saques pendentes:', totalPendingWithdrawals);
+      console.log('⏳ RESULTADO FINAL - Saques normais pendentes:', pendingNormalWithdrawals.length);
+      console.log('⏳ RESULTADO FINAL - Saques de afiliados pendentes:', pendingAffiliateWithdrawals.length);
+      console.log('⏳ RESULTADO FINAL - Total de saques pendentes:', totalPendingWithdrawals);
 
       // Log detalhado dos saques pendentes
-      console.log('📋 Saques normais pendentes detalhados:', pendingNormalWithdrawals.map(w => ({
-        id: w.id.slice(-8),
-        username: w.username,
-        amount: w.amount,
-        status: w.status
-      })));
+      console.log('📋 Lista de saques normais pendentes:');
+      pendingNormalWithdrawals.forEach(w => {
+        console.log(`  - ID: ${w.id.slice(-8)}, User: ${w.username}, Amount: ${w.amount}, Status: "${w.status}"`);
+      });
       
-      console.log('📋 Saques de afiliados pendentes detalhados:', pendingAffiliateWithdrawals.map(w => ({
-        id: w.id.slice(-8),
-        username: w.username,
-        amount: w.amount,
-        status: w.status
-      })));
+      console.log('📋 Lista de saques de afiliados pendentes:');
+      pendingAffiliateWithdrawals.forEach(w => {
+        console.log(`  - ID: ${w.id.slice(-8)}, User: ${w.username}, Amount: ${w.amount}, Status: "${w.status}"`);
+      });
 
+      // ... keep existing code (miners and calculations)
       const allMiners: MinerData[] = [];
       usersData.forEach(user => {
         if (user.miners && user.miners.length > 0) {
@@ -271,7 +294,7 @@ const AdminDashboard = () => {
 
       const activeMiners = allMiners.filter(m => m.isActive).length;
 
-      console.log('📊 Estatísticas finais:', {
+      console.log('📊 Estatísticas finais para o painel:', {
         totalPendingWithdrawals,
         pendingWithdrawalAmount,
         totalDeposits,
@@ -304,6 +327,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // ... keep existing code (handler functions)
   const handleEditUser = (user: UserData) => {
     setSelectedUser(user);
     setEditModalOpen(true);
@@ -409,6 +433,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Filtros com logs de debug
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -435,22 +460,48 @@ const AdminDashboard = () => {
     const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = withdrawalFilter === 'all' || 
-                         withdrawal.status === withdrawalFilter ||
-                         (withdrawalFilter === 'pending' && isPendingStatus(withdrawal.status));
-    return matchesSearch && matchesFilter;
+    
+    let matchesFilter = false;
+    if (withdrawalFilter === 'all') {
+      matchesFilter = true;
+    } else if (withdrawalFilter === 'pending') {
+      matchesFilter = isPendingStatus(withdrawal.status);
+    } else {
+      matchesFilter = withdrawal.status === withdrawalFilter;
+    }
+    
+    const result = matchesSearch && matchesFilter;
+    if (withdrawalFilter === 'pending') {
+      console.log(`🔍 Filtering withdrawal ${withdrawal.id.slice(-8)}: status="${withdrawal.status}", isPending=${isPendingStatus(withdrawal.status)}, result=${result}`);
+    }
+    
+    return result;
   });
 
   const filteredAffiliateWithdrawals = affiliateWithdrawals.filter(withdrawal => {
     const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = withdrawalFilter === 'all' || 
-                         withdrawal.status === withdrawalFilter ||
-                         (withdrawalFilter === 'pending' && isPendingStatus(withdrawal.status));
+    
+    let matchesFilter = false;
+    if (withdrawalFilter === 'all') {
+      matchesFilter = true;
+    } else if (withdrawalFilter === 'pending') {
+      matchesFilter = isPendingStatus(withdrawal.status);
+    } else {
+      matchesFilter = withdrawal.status === withdrawalFilter;
+    }
+    
     return matchesSearch && matchesFilter;
   });
 
+  // Log dos resultados da filtragem
+  console.log('🔍 Resultados da filtragem:');
+  console.log(`  - withdrawalFilter: ${withdrawalFilter}`);
+  console.log(`  - filteredWithdrawals: ${filteredWithdrawals.length}`);
+  console.log(`  - filteredAffiliateWithdrawals: ${filteredAffiliateWithdrawals.length}`);
+
+  // ... keep existing code (utility functions)
   const getStatusColor = (status?: string) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/50';
@@ -932,7 +983,7 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Withdrawals Tab */}
+          {/* Withdrawals Tab com logs melhorados */}
           <TabsContent value="withdrawals" className="space-y-6">
             <Card className="bg-gray-800/50 border-gray-700">
               <CardHeader>
@@ -943,7 +994,7 @@ const AdminDashboard = () => {
                       💰 Saques de Usuários
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      Gerencie todos os saques do saldo principal ({filteredWithdrawals.length} total)
+                      Gerencie todos os saques do saldo principal ({filteredWithdrawals.length} filtrados de {withdrawals.length} total)
                     </CardDescription>
                   </div>
                   <select
@@ -964,6 +1015,10 @@ const AdminDashboard = () => {
                     <Banknote className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <div className="text-lg">
                       {withdrawalFilter === 'pending' ? 'Nenhum saque pendente encontrado' : 'Nenhum saque encontrado'}
+                    </div>
+                    <div className="text-sm mt-2">
+                      Total de saques: {withdrawals.length} | 
+                      Pendentes: {withdrawals.filter(w => isPendingStatus(w.status)).length}
                     </div>
                   </div>
                 ) : (
