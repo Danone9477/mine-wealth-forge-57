@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -183,7 +182,8 @@ const Miners = () => {
       const updatedMiners = [...(userData.miners || []), newMiner];
       const newBalance = userData.balance - miner.price;
       
-      const transaction = {
+      // Adicionar transação de compra
+      const purchaseTransaction = {
         id: Date.now().toString(),
         type: 'purchase' as const,
         amount: miner.price,
@@ -197,10 +197,33 @@ const Miners = () => {
         }
       };
 
-      const updatedTransactions = [...(userData.transactions || []), transaction];
+      // Adicionar transação de ganho imediato
+      const immediateEarningTransaction = {
+        id: (Date.now() + 1).toString(),
+        type: 'mining' as const,
+        amount: miner.dailyReturn,
+        status: 'success' as const,
+        date: new Date().toISOString(),
+        description: `Primeiro ganho do ${miner.name}`
+      };
+
+      const updatedTransactions = [...(userData.transactions || []), purchaseTransaction, immediateEarningTransaction];
+
+      // Calcular ganhos mensais atualizados
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const monthlyEarnings = updatedTransactions
+        .filter(t => 
+          (t.type === 'mining' || t.type === 'mining_reward' || t.type === 'task') && 
+          new Date(t.date) >= thirtyDaysAgo
+        )
+        .reduce((sum, t) => sum + t.amount, 0);
 
       await updateUserData({
-        balance: newBalance,
+        balance: newBalance + miner.dailyReturn, // Somar o ganho imediato
+        totalEarnings: userData.totalEarnings + miner.dailyReturn,
+        monthlyEarnings: monthlyEarnings,
         miners: updatedMiners,
         transactions: updatedTransactions,
         canWithdraw: true
@@ -208,7 +231,7 @@ const Miners = () => {
 
       toast({
         title: "🎉 Minerador comprado com sucesso!",
-        description: `${miner.name} está ativo e começará a gerar ${miner.dailyReturn} MT por dia. Saques liberados!`,
+        description: `${miner.name} está ativo! Você ganhou ${miner.dailyReturn} MT imediatamente. Saques liberados!`,
       });
 
     } catch (error) {
@@ -231,7 +254,8 @@ const Miners = () => {
     return Math.max(0, diffDays);
   };
 
-  const activeMiners = userData?.miners?.filter(m => m.isActive) || [];
+  // Filtrar mineradores ativos corretamente
+  const activeMiners = userData?.miners?.filter(m => (m.isActive || m.active) && calculateDaysRemaining(m.expiryDate) > 0) || [];
   const totalDailyEarnings = activeMiners.reduce((sum, miner) => sum + miner.dailyReturn, 0);
 
   if (!userData) {
@@ -453,7 +477,7 @@ const Miners = () => {
               </div>
               <p className="text-gray-300 mb-6 text-lg">
                 Todos os mineradores são processados automaticamente com tecnologia blockchain avançada. 
-                Os ganhos são creditados diariamente com garantia de retorno de 350% em 30 dias.
+                Os ganhos são creditados imediatamente na compra e depois diariamente com garantia de retorno de 350% em 30 dias.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">

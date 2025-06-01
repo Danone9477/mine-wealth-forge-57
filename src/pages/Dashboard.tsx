@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +42,7 @@ const Dashboard = () => {
     const today = now.toDateString();
     
     const hasEarningsToCollect = userData.miners.some(miner => {
-      if (!miner.active) return false;
+      if (!miner.isActive && !miner.active) return false;
       
       const lastCollection = miner.lastCollection ? new Date(miner.lastCollection).toDateString() : null;
       const expiryDate = new Date(miner.expiryDate);
@@ -59,7 +58,7 @@ const Dashboard = () => {
 
     const baseTaskReward = 25;
     const minerBonus = userData.miners?.reduce((total, miner) => {
-      if (!miner.active) return total;
+      if (!miner.isActive && !miner.active) return total;
       const expiryDate = new Date(miner.expiryDate);
       return expiryDate > new Date() ? total + (miner.dailyReturn || 0) : total;
     }, 0) || 0;
@@ -101,7 +100,7 @@ const Dashboard = () => {
       let totalEarnings = 0;
       
       const updatedMiners = userData.miners?.map(miner => {
-        if (!miner.active) return miner;
+        if (!miner.isActive && !miner.active) return miner;
         
         const lastCollection = miner.lastCollection ? new Date(miner.lastCollection).toDateString() : null;
         const expiryDate = new Date(miner.expiryDate);
@@ -114,8 +113,11 @@ const Dashboard = () => {
           return {
             ...miner,
             lastCollection: now.toISOString(),
+            lastProcessed: now.toISOString(),
             daysRemaining,
-            active: daysRemaining > 0
+            isActive: daysRemaining > 0,
+            active: daysRemaining > 0,
+            totalEarned: (miner.totalEarned || 0) + (miner.dailyReturn || 0)
           };
         }
         
@@ -132,9 +134,21 @@ const Dashboard = () => {
           description: `Ganhos diários dos mineradores coletados`
         };
 
+        // Calcular ganhos mensais atualizados
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const monthlyEarnings = (userData.transactions || [])
+          .filter(t => 
+            (t.type === 'mining' || t.type === 'mining_reward' || t.type === 'task') && 
+            new Date(t.date) >= thirtyDaysAgo
+          )
+          .reduce((sum, t) => sum + t.amount, 0) + totalEarnings;
+
         await updateUserData({
           balance: userData.balance + totalEarnings,
           totalEarnings: userData.totalEarnings + totalEarnings,
+          monthlyEarnings: monthlyEarnings,
           miners: updatedMiners,
           transactions: [...(userData.transactions || []), transaction]
         });
@@ -168,24 +182,28 @@ const Dashboard = () => {
     );
   }
 
+  // Calcular mineradores ativos corretamente
   const activeMinerEarnings = userData.miners?.reduce((acc, miner) => {
-    if (!miner.active) return acc;
+    if (!miner.isActive && !miner.active) return acc;
     const expiryDate = new Date(miner.expiryDate);
     return expiryDate > new Date() ? acc + (miner.dailyReturn || 0) : acc;
   }, 0) || 0;
 
   const activeMinerCount = userData.miners?.filter(miner => {
-    if (!miner.active) return false;
+    if (!miner.isActive && !miner.active) return false;
     const expiryDate = new Date(miner.expiryDate);
     return expiryDate > new Date();
   }).length || 0;
 
-  // Calculate today's earnings from completed tasks and collections
+  // Calcular ganhos de hoje corretamente
   const todayEarnings = userData.transactions?.filter(t => {
     const transactionDate = new Date(t.date).toDateString();
     const today = new Date().toDateString();
-    return transactionDate === today && (t.type === 'task' || t.type === 'mining');
+    return transactionDate === today && (t.type === 'task' || t.type === 'mining' || t.type === 'mining_reward');
   }).reduce((sum, t) => sum + t.amount, 0) || 0;
+
+  // Calcular ganhos mensais
+  const monthlyEarnings = userData.monthlyEarnings || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
@@ -246,13 +264,13 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Total de Lucros */}
+          {/* Ganhos Mensais */}
           <Card className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border-purple-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-200 font-medium mb-1">Total de Lucros</p>
-                  <p className="text-3xl font-bold text-white">{userData.totalEarnings.toFixed(2)} MT</p>
+                  <p className="text-purple-200 font-medium mb-1">Ganhos Mensais</p>
+                  <p className="text-3xl font-bold text-white">{monthlyEarnings.toFixed(2)} MT</p>
                 </div>
                 <Trophy className="h-12 w-12 text-purple-400" />
               </div>
