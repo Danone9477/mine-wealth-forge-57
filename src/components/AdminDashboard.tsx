@@ -173,16 +173,41 @@ const AdminDashboard = () => {
       setTransactions(transactionsData);
       console.log('💳 Transações carregadas:', transactionsData.length);
 
-      const allWithdrawals = transactionsData.filter(t => t.type === 'withdrawal');
-      const normalWithdrawals = allWithdrawals.filter(t => !t.source || t.source === 'balance');
-      const affiliateWithdrawalsData = allWithdrawals.filter(t => t.source === 'affiliate');
+      // Melhorar a separação e contagem de saques
+      const allWithdrawals = transactionsData.filter(t => 
+        t.type === 'withdrawal' || t.type === 'saque'
+      );
+      
+      console.log('🔍 Todos os saques encontrados:', allWithdrawals.length);
+      
+      const normalWithdrawals = allWithdrawals.filter(t => 
+        !t.source || t.source === 'balance' || t.source === 'main'
+      );
+      
+      const affiliateWithdrawalsData = allWithdrawals.filter(t => 
+        t.source === 'affiliate' || t.source === 'commission'
+      );
 
       setWithdrawals(normalWithdrawals);
       setAffiliateWithdrawals(affiliateWithdrawalsData);
       
       console.log('💰 Saques normais:', normalWithdrawals.length);
       console.log('⭐ Saques de afiliados:', affiliateWithdrawalsData.length);
-      console.log('⏳ Saques pendentes:', allWithdrawals.filter(w => w.status === 'pending').length);
+
+      // Contar saques pendentes com mais precisão
+      const pendingNormalWithdrawals = normalWithdrawals.filter(w => 
+        w.status === 'pending' || w.status === 'pendente'
+      );
+      
+      const pendingAffiliateWithdrawals = affiliateWithdrawalsData.filter(w => 
+        w.status === 'pending' || w.status === 'pendente'
+      );
+
+      const totalPendingWithdrawals = pendingNormalWithdrawals.length + pendingAffiliateWithdrawals.length;
+      
+      console.log('⏳ Saques normais pendentes:', pendingNormalWithdrawals.length);
+      console.log('⏳ Saques de afiliados pendentes:', pendingAffiliateWithdrawals.length);
+      console.log('⏳ Total de saques pendentes:', totalPendingWithdrawals);
 
       const allMiners: MinerData[] = [];
       usersData.forEach(user => {
@@ -204,22 +229,30 @@ const AdminDashboard = () => {
       ).length;
 
       const totalDeposits = transactionsData
-        .filter(t => t.type === 'deposit' && t.status === 'completed')
+        .filter(t => (t.type === 'deposit' || t.type === 'deposito') && 
+                    (t.status === 'completed' || t.status === 'completo'))
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const totalWithdrawals = transactionsData
-        .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+        .filter(t => (t.type === 'withdrawal' || t.type === 'saque') && 
+                    (t.status === 'completed' || t.status === 'completo'))
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
-      const pendingWithdrawals = allWithdrawals.filter(t => t.status === 'pending').length;
-      const pendingWithdrawalAmount = allWithdrawals
-        .filter(t => t.status === 'pending')
+      const pendingWithdrawalAmount = [...pendingNormalWithdrawals, ...pendingAffiliateWithdrawals]
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const totalAffiliateCommissions = affiliateUsers
         .reduce((sum, user) => sum + (user.affiliateBalance || 0), 0);
 
       const activeMiners = allMiners.filter(m => m.isActive).length;
+
+      // Log das estatísticas para debug
+      console.log('📊 Estatísticas finais:', {
+        totalPendingWithdrawals,
+        pendingWithdrawalAmount,
+        totalDeposits,
+        totalWithdrawals
+      });
 
       setStats({
         totalUsers: regularUsers.length,
@@ -228,7 +261,7 @@ const AdminDashboard = () => {
         totalWithdrawals,
         activeMiners,
         todayRegistrations,
-        pendingWithdrawals,
+        pendingWithdrawals: totalPendingWithdrawals,
         pendingWithdrawalAmount,
         totalProfit: totalDeposits - totalWithdrawals,
         systemUptime: 99.9,
@@ -378,7 +411,9 @@ const AdminDashboard = () => {
     const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = withdrawalFilter === 'all' || withdrawal.status === withdrawalFilter;
+    const matchesFilter = withdrawalFilter === 'all' || 
+                         withdrawal.status === withdrawalFilter ||
+                         (withdrawalFilter === 'pending' && (withdrawal.status === 'pending' || withdrawal.status === 'pendente'));
     return matchesSearch && matchesFilter;
   });
 
@@ -386,7 +421,9 @@ const AdminDashboard = () => {
     const matchesSearch = withdrawal.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          withdrawal.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = withdrawalFilter === 'all' || withdrawal.status === withdrawalFilter;
+    const matchesFilter = withdrawalFilter === 'all' || 
+                         withdrawal.status === withdrawalFilter ||
+                         (withdrawalFilter === 'pending' && (withdrawal.status === 'pending' || withdrawal.status === 'pendente'));
     return matchesSearch && matchesFilter;
   });
 
@@ -482,7 +519,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Stats Grid Melhorado */}
+        {/* Stats Grid com contadores corretos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-blue-900/40 to-blue-800/40 border-blue-700/50 hover:border-blue-600/70 transition-all">
             <CardHeader className="pb-2">
@@ -530,17 +567,23 @@ const AdminDashboard = () => {
                   <Clock className="h-4 w-4" />
                   Saques Pendentes
                 </CardTitle>
-                <AlertCircle className="h-5 w-5 text-red-400 animate-pulse" />
+                {stats.pendingWithdrawals > 0 && (
+                  <AlertCircle className="h-5 w-5 text-red-400 animate-pulse" />
+                )}
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white">{stats.pendingWithdrawals}</div>
               <p className="text-xs text-red-300">Valor: {stats.pendingWithdrawalAmount.toFixed(0)} MT</p>
+              <div className="text-xs text-red-200 mt-1">
+                Normal: {withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length} | 
+                Afiliados: {affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length}
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs Principais */}
+        {/* Tabs Principais com contadores atualizados */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 bg-gray-800/70 border-gray-700 p-1 rounded-xl">
             <TabsTrigger 
@@ -565,8 +608,8 @@ const AdminDashboard = () => {
               value="withdrawals" 
               className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900 rounded-lg transition-all relative"
             >
-              💰 Saques ({withdrawals.filter(w => w.status === 'pending').length})
-              {withdrawals.filter(w => w.status === 'pending').length > 0 && (
+              💰 Saques ({withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})
+              {withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </TabsTrigger>
@@ -574,8 +617,8 @@ const AdminDashboard = () => {
               value="affiliate-withdrawals" 
               className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900 rounded-lg transition-all relative"
             >
-              🌟 Saques Afiliados ({affiliateWithdrawals.filter(w => w.status === 'pending').length})
-              {affiliateWithdrawals.filter(w => w.status === 'pending').length > 0 && (
+              🌟 Saques Afiliados ({affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})
+              {affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </TabsTrigger>
@@ -632,7 +675,7 @@ const AdminDashboard = () => {
                 <CardContent>
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {[...withdrawals, ...affiliateWithdrawals]
-                      .filter(w => w.status === 'pending')
+                      .filter(w => w.status === 'pending' || w.status === 'pendente')
                       .slice(0, 8)
                       .map((withdrawal) => (
                       <div key={withdrawal.id} className="flex items-center justify-between p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
@@ -888,7 +931,7 @@ const AdminDashboard = () => {
                     className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
                   >
                     <option value="all">Todos ({withdrawals.length})</option>
-                    <option value="pending">🔄 Pendente ({withdrawals.filter(w => w.status === 'pending').length})</option>
+                    <option value="pending">🔄 Pendente ({withdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})</option>
                     <option value="completed">✅ Pago ({withdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">❌ Rejeitado ({withdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
@@ -919,7 +962,7 @@ const AdminDashboard = () => {
                       <tbody>
                         {filteredWithdrawals.map((withdrawal) => (
                           <tr key={withdrawal.id} className={`border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors ${
-                            withdrawal.status === 'pending' ? 'bg-yellow-900/10' : ''
+                            withdrawal.status === 'pending' || withdrawal.status === 'pendente' ? 'bg-yellow-900/10' : ''
                           }`}>
                             <td className="py-4 px-3">
                               <div className="flex items-center gap-3">
@@ -972,7 +1015,7 @@ const AdminDashboard = () => {
                             </td>
                             <td className="py-4 px-3">
                               <div className="flex gap-1">
-                                {withdrawal.status === 'pending' && (
+                                {withdrawal.status === 'pending' || withdrawal.status === 'pendente' && (
                                   <>
                                     <Button 
                                       size="sm" 
@@ -1033,7 +1076,7 @@ const AdminDashboard = () => {
                     className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
                   >
                     <option value="all">Todos ({affiliateWithdrawals.length})</option>
-                    <option value="pending">🔄 Pendente ({affiliateWithdrawals.filter(w => w.status === 'pending').length})</option>
+                    <option value="pending">🔄 Pendente ({affiliateWithdrawals.filter(w => w.status === 'pending' || w.status === 'pendente').length})</option>
                     <option value="completed">✅ Pago ({affiliateWithdrawals.filter(w => w.status === 'completed').length})</option>
                     <option value="rejected">❌ Rejeitado ({affiliateWithdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
@@ -1064,7 +1107,7 @@ const AdminDashboard = () => {
                       <tbody>
                         {filteredAffiliateWithdrawals.map((withdrawal) => (
                           <tr key={withdrawal.id} className={`border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors ${
-                            withdrawal.status === 'pending' ? 'bg-gold-900/10' : ''
+                            withdrawal.status === 'pending' || withdrawal.status === 'pendente' ? 'bg-gold-900/10' : ''
                           }`}>
                             <td className="py-4 px-3">
                               <div className="flex items-center gap-3">
@@ -1121,7 +1164,7 @@ const AdminDashboard = () => {
                             </td>
                             <td className="py-4 px-3">
                               <div className="flex gap-1">
-                                {withdrawal.status === 'pending' && (
+                                {withdrawal.status === 'pending' || withdrawal.status === 'pendente' && (
                                   <>
                                     <Button 
                                       size="sm" 
