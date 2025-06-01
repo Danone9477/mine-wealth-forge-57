@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,7 @@ import {
   Phone,
   MapPin
 } from "lucide-react";
-import { collection, getDocs, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 import EditUserModal from './EditUserModal';
@@ -68,6 +67,7 @@ interface TransactionData {
   processedBy?: string;
   notes?: string;
   userId?: string;
+  source?: string;
   [key: string]: any;
 }
 
@@ -115,6 +115,7 @@ const AdminDashboard = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true);
+      console.log('Carregando dados administrativos...');
       
       // Carregar usuários
       const usersSnapshot = await getDocs(collection(db, 'users'));
@@ -127,35 +128,43 @@ const AdminDashboard = () => {
         } as UserData;
       });
       setUsers(usersData);
+      console.log('Usuários carregados:', usersData.length);
 
-      // Carregar transações
-      const transactionsQuery = query(
-        collection(db, 'transactions'),
-        orderBy('timestamp', 'desc')
-      );
-      const transactionsSnapshot = await getDocs(transactionsQuery);
+      // Carregar transações - removendo orderBy para evitar erros de índice
+      const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
       const transactionsData: TransactionData[] = transactionsSnapshot.docs.map(doc => {
         const data = doc.data();
         const userData = usersData.find(u => u.id === data.userId);
         return {
           id: doc.id,
           ...data,
-          email: userData?.email || 'N/A',
-          date: data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : 'N/A'
+          username: userData?.username || data.username || 'N/A',
+          email: userData?.email || data.email || 'N/A',
+          date: data.timestamp ? new Date(data.timestamp.toDate ? data.timestamp.toDate() : data.timestamp).toLocaleString('pt-BR') : 'N/A'
         } as TransactionData;
       });
+      
+      // Ordenar por timestamp (mais recentes primeiro)
+      transactionsData.sort((a, b) => {
+        const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+        const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+        return timeB.getTime() - timeA.getTime();
+      });
+      
       setTransactions(transactionsData);
+      console.log('Transações carregadas:', transactionsData.length);
 
       // Separar saques normais e de afiliados
-      const normalWithdrawals = transactionsData.filter(t => 
-        t.type === 'withdrawal' && (!t.source || t.source === 'balance')
-      );
-      const affiliateWithdrawalsData = transactionsData.filter(t => 
-        t.type === 'withdrawal' && t.source === 'affiliate'
-      );
+      const allWithdrawals = transactionsData.filter(t => t.type === 'withdrawal');
+      const normalWithdrawals = allWithdrawals.filter(t => !t.source || t.source === 'balance');
+      const affiliateWithdrawalsData = allWithdrawals.filter(t => t.source === 'affiliate');
 
       setWithdrawals(normalWithdrawals);
       setAffiliateWithdrawals(affiliateWithdrawalsData);
+      
+      console.log('Saques normais:', normalWithdrawals.length);
+      console.log('Saques de afiliados:', affiliateWithdrawalsData.length);
+      console.log('Saques pendentes:', allWithdrawals.filter(w => w.status === 'pending').length);
 
       // Carregar mineradores
       const allMiners: MinerData[] = [];
@@ -186,11 +195,9 @@ const AdminDashboard = () => {
         .filter(t => t.type === 'withdrawal' && t.status === 'completed')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
-      const pendingWithdrawals = transactionsData
-        .filter(t => t.type === 'withdrawal' && t.status === 'pending').length;
-
-      const pendingWithdrawalAmount = transactionsData
-        .filter(t => t.type === 'withdrawal' && t.status === 'pending')
+      const pendingWithdrawals = allWithdrawals.filter(t => t.status === 'pending').length;
+      const pendingWithdrawalAmount = allWithdrawals
+        .filter(t => t.status === 'pending')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       const activeMiners = allMiners.filter(m => m.isActive).length;
@@ -205,6 +212,12 @@ const AdminDashboard = () => {
         pendingWithdrawalAmount,
         totalProfit: totalDeposits - totalWithdrawals,
         systemUptime: 99.9
+      });
+
+      console.log('Estatísticas calculadas:', {
+        pendingWithdrawals,
+        pendingWithdrawalAmount,
+        totalWithdrawals: allWithdrawals.length
       });
 
     } catch (error) {
@@ -262,23 +275,15 @@ const AdminDashboard = () => {
         processedBy: 'admin'
       });
       
-      setTransactions(prev => prev.map(transaction => 
+      // Atualizar todos os estados que contêm transações
+      const updateTransaction = (transaction: TransactionData) => 
         transaction.id === transactionId 
           ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
-          : transaction
-      ));
-      
-      setWithdrawals(prev => prev.map(transaction => 
-        transaction.id === transactionId 
-          ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
-          : transaction
-      ));
+          : transaction;
 
-      setAffiliateWithdrawals(prev => prev.map(transaction => 
-        transaction.id === transactionId 
-          ? { ...transaction, status, notes, processedAt: new Date().toISOString() }
-          : transaction
-      ));
+      setTransactions(prev => prev.map(updateTransaction));
+      setWithdrawals(prev => prev.map(updateTransaction));
+      setAffiliateWithdrawals(prev => prev.map(updateTransaction));
       
       toast({
         title: "Sucesso",
@@ -286,12 +291,48 @@ const AdminDashboard = () => {
       });
       
       setWithdrawalModalOpen(false);
-      loadAdminData();
+      // Recarregar dados para atualizar estatísticas
+      await loadAdminData();
     } catch (error) {
       console.error('Erro ao processar saque:', error);
       toast({
         title: "Erro",
         description: "Erro ao processar saque",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleQuickStatusUpdate = async (transactionId: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, 'transactions', transactionId), {
+        status: newStatus,
+        processedAt: new Date().toISOString(),
+        processedBy: 'admin'
+      });
+      
+      // Atualizar estado local
+      const updateTransaction = (transaction: TransactionData) => 
+        transaction.id === transactionId 
+          ? { ...transaction, status: newStatus, processedAt: new Date().toISOString() }
+          : transaction;
+
+      setTransactions(prev => prev.map(updateTransaction));
+      setWithdrawals(prev => prev.map(updateTransaction));
+      setAffiliateWithdrawals(prev => prev.map(updateTransaction));
+      
+      toast({
+        title: "Sucesso",
+        description: `Saque marcado como ${newStatus === 'completed' ? 'aprovado' : 'rejeitado'}`,
+      });
+      
+      // Recarregar dados para atualizar estatísticas
+      await loadAdminData();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status",
         variant: "destructive",
       });
     }
@@ -345,40 +386,6 @@ const AdminDashboard = () => {
       case 'withdrawal': return <Banknote className="h-4 w-4" />;
       case 'mining': return <Pickaxe className="h-4 w-4" />;
       default: return <DollarSign className="h-4 w-4" />;
-    }
-  };
-
-  const handleQuickStatusUpdate = async (transactionId: string, newStatus: string) => {
-    try {
-      await updateDoc(doc(db, 'transactions', transactionId), {
-        status: newStatus,
-        processedAt: new Date().toISOString(),
-        processedBy: 'admin'
-      });
-      
-      // Atualizar estado local
-      const updateTransaction = (transaction: TransactionData) => 
-        transaction.id === transactionId 
-          ? { ...transaction, status: newStatus, processedAt: new Date().toISOString() }
-          : transaction;
-
-      setTransactions(prev => prev.map(updateTransaction));
-      setWithdrawals(prev => prev.map(updateTransaction));
-      setAffiliateWithdrawals(prev => prev.map(updateTransaction));
-      
-      toast({
-        title: "Sucesso",
-        description: `Saque marcado como ${newStatus}`,
-      });
-      
-      loadAdminData();
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar status",
-        variant: "destructive",
-      });
     }
   };
 
@@ -495,10 +502,10 @@ const AdminDashboard = () => {
               Transações
             </TabsTrigger>
             <TabsTrigger value="withdrawals" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
-              Saques
+              Saques ({withdrawals.filter(w => w.status === 'pending').length})
             </TabsTrigger>
             <TabsTrigger value="affiliate-withdrawals" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
-              Saques Afiliados
+              Saques Afiliados ({affiliateWithdrawals.filter(w => w.status === 'pending').length})
             </TabsTrigger>
             <TabsTrigger value="miners" className="data-[state=active]:bg-gold-400 data-[state=active]:text-gray-900">
               Mineradores
@@ -652,7 +659,7 @@ const AdminDashboard = () => {
                   <div>
                     <CardTitle className="text-white">Saques de Usuários</CardTitle>
                     <CardDescription className="text-gray-400">
-                      Processe e gerencie saques do saldo principal
+                      Processe e gerencie saques do saldo principal ({filteredWithdrawals.length} total)
                     </CardDescription>
                   </div>
                   <select
@@ -660,87 +667,96 @@ const AdminDashboard = () => {
                     onChange={(e) => setWithdrawalFilter(e.target.value)}
                     className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white text-sm"
                   >
-                    <option value="all">Todos</option>
-                    <option value="pending">Pendente</option>
-                    <option value="completed">Aprovado</option>
-                    <option value="rejected">Rejeitado</option>
+                    <option value="all">Todos ({withdrawals.length})</option>
+                    <option value="pending">Pendente ({withdrawals.filter(w => w.status === 'pending').length})</option>
+                    <option value="completed">Aprovado ({withdrawals.filter(w => w.status === 'completed').length})</option>
+                    <option value="rejected">Rejeitado ({withdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-700">
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredWithdrawals.map((withdrawal) => (
-                        <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                          <td className="py-3 px-2">
-                            <div>
-                              <div className="text-white font-medium">{withdrawal.username || 'N/A'}</div>
-                              <div className="text-gray-400 text-xs">{withdrawal.email}</div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-1 text-gray-300">
-                              <Phone className="h-3 w-3" />
-                              <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
-                          <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
-                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
-                          <td className="py-3 px-2">
-                            <Badge className={getStatusColor(withdrawal.status)}>
-                              {withdrawal.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex gap-1">
-                              {withdrawal.status === 'pending' && (
-                                <>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-7 px-2 text-green-400 hover:bg-green-400/20"
-                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
-                                  >
-                                    <CheckCircle className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-7 px-2 text-red-400 hover:bg-red-400/20"
-                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
-                                  >
-                                    <AlertCircle className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              )}
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
-                                onClick={() => handleProcessWithdrawal(withdrawal)}
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
+                {filteredWithdrawals.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    {withdrawalFilter === 'pending' ? 'Nenhum saque pendente encontrado' : 'Nenhum saque encontrado'}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-700">
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Usuário</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredWithdrawals.map((withdrawal) => (
+                          <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                            <td className="py-3 px-2">
+                              <div>
+                                <div className="text-white font-medium">{withdrawal.username || 'N/A'}</div>
+                                <div className="text-gray-400 text-xs">{withdrawal.email}</div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1 text-gray-300">
+                                <Phone className="h-3 w-3" />
+                                <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
+                            <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
+                            <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
+                            <td className="py-3 px-2">
+                              <Badge className={getStatusColor(withdrawal.status)}>
+                                {withdrawal.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex gap-1">
+                                {withdrawal.status === 'pending' && (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-7 px-2 text-green-400 hover:bg-green-400/20"
+                                      onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
+                                      title="Aprovar saque"
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-7 px-2 text-red-400 hover:bg-red-400/20"
+                                      onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
+                                      title="Rejeitar saque"
+                                    >
+                                      <AlertCircle className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
+                                  onClick={() => handleProcessWithdrawal(withdrawal)}
+                                  title="Ver detalhes"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -753,7 +769,7 @@ const AdminDashboard = () => {
                   <div>
                     <CardTitle className="text-white">Saques de Afiliados</CardTitle>
                     <CardDescription className="text-gray-400">
-                      Processe saques das comissões de afiliados
+                      Processe saques das comissões de afiliados ({filteredAffiliateWithdrawals.length} total)
                     </CardDescription>
                   </div>
                   <select
@@ -761,87 +777,96 @@ const AdminDashboard = () => {
                     onChange={(e) => setWithdrawalFilter(e.target.value)}
                     className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white text-sm"
                   >
-                    <option value="all">Todos</option>
-                    <option value="pending">Pendente</option>
-                    <option value="completed">Aprovado</option>
-                    <option value="rejected">Rejeitado</option>
+                    <option value="all">Todos ({affiliateWithdrawals.length})</option>
+                    <option value="pending">Pendente ({affiliateWithdrawals.filter(w => w.status === 'pending').length})</option>
+                    <option value="completed">Aprovado ({affiliateWithdrawals.filter(w => w.status === 'completed').length})</option>
+                    <option value="rejected">Rejeitado ({affiliateWithdrawals.filter(w => w.status === 'rejected').length})</option>
                   </select>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-700">
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
-                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAffiliateWithdrawals.map((withdrawal) => (
-                        <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                          <td className="py-3 px-2">
-                            <div>
-                              <div className="text-gold-400 font-medium">{withdrawal.username || 'N/A'}</div>
-                              <div className="text-gray-400 text-xs">{withdrawal.email}</div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-1 text-gray-300">
-                              <Phone className="h-3 w-3" />
-                              <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
-                          <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
-                          <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
-                          <td className="py-3 px-2">
-                            <Badge className={getStatusColor(withdrawal.status)}>
-                              {withdrawal.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex gap-1">
-                              {withdrawal.status === 'pending' && (
-                                <>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-7 px-2 text-green-400 hover:bg-green-400/20"
-                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
-                                  >
-                                    <CheckCircle className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-7 px-2 text-red-400 hover:bg-red-400/20"
-                                    onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
-                                  >
-                                    <AlertCircle className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              )}
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
-                                onClick={() => handleProcessWithdrawal(withdrawal)}
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
+                {filteredAffiliateWithdrawals.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    {withdrawalFilter === 'pending' ? 'Nenhum saque de afiliado pendente encontrado' : 'Nenhum saque de afiliado encontrado'}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-700">
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Afiliado</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Contato</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Valor</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Método</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium hidden lg:table-cell">Data</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                          <th className="text-left py-3 px-2 text-gray-400 font-medium">Ações</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredAffiliateWithdrawals.map((withdrawal) => (
+                          <tr key={withdrawal.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                            <td className="py-3 px-2">
+                              <div>
+                                <div className="text-gold-400 font-medium">{withdrawal.username || 'N/A'}</div>
+                                <div className="text-gray-400 text-xs">{withdrawal.email}</div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1 text-gray-300">
+                                <Phone className="h-3 w-3" />
+                                <span className="text-xs">{withdrawal.phone || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-gold-400 font-bold">{withdrawal.amount} MT</td>
+                            <td className="py-3 px-2 text-gray-300">{withdrawal.method || 'N/A'}</td>
+                            <td className="py-3 px-2 text-gray-400 hidden lg:table-cell text-xs">{withdrawal.date}</td>
+                            <td className="py-3 px-2">
+                              <Badge className={getStatusColor(withdrawal.status)}>
+                                {withdrawal.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="flex gap-1">
+                                {withdrawal.status === 'pending' && (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-7 px-2 text-green-400 hover:bg-green-400/20"
+                                      onClick={() => handleQuickStatusUpdate(withdrawal.id, 'completed')}
+                                      title="Aprovar saque"
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-7 px-2 text-red-400 hover:bg-red-400/20"
+                                      onClick={() => handleQuickStatusUpdate(withdrawal.id, 'rejected')}
+                                      title="Rejeitar saque"
+                                    >
+                                      <AlertCircle className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-7 px-2 text-blue-400 hover:bg-blue-400/20"
+                                  onClick={() => handleProcessWithdrawal(withdrawal)}
+                                  title="Ver detalhes"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
