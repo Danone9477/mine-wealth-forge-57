@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, CreditCard, User, Mail, Copy, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 import WithdrawalsManagement from './WithdrawalsManagement';
 
@@ -27,8 +29,9 @@ const AdminDashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-	const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -36,185 +39,81 @@ const AdminDashboard = () => {
       return;
     }
 
-    const fetchUsers = async () => {
-      try {
-        // Mock data com usuários mais realistas
-        const mockUsers = [
-          {
-            id: '1',
-            username: 'carlos_silva',
-            email: 'carlos.silva@gmail.com',
-            createdAt: '2024-01-15'
-          },
-          {
-            id: '2', 
-            username: 'ana_costa',
-            email: 'ana.costa@hotmail.com',
-            createdAt: '2024-01-20'
-          },
-          {
-            id: '3',
-            username: 'joao_afiliado',
-            email: 'joao.marketing@gmail.com',
-            createdAt: '2024-02-01'
-          },
-          {
-            id: '4',
-            username: 'maria_santos',
-            email: 'maria.santos@yahoo.com',
-            createdAt: '2024-02-10'
-          }
-        ];
-        setUsers(mockUsers);
-      } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
-        toast({
-          title: "Erro ao buscar usuários",
-          description: "Tente novamente mais tarde.",
-          variant: "destructive",
-        })
-      }
-    };
-
-    const fetchTransactions = async () => {
-      try {
-        // Mock data com saques completos e realistas
-        const mockTransactions = [
-          {
-            id: 'WD001',
-            userId: '1',
-            username: 'carlos_silva',
-            email: 'carlos.silva@gmail.com',
-            type: 'withdrawal',
-            amount: 150,
-            date: '2024-01-25',
-            status: 'pending',
-            source: 'user',
-            phone: '+258 84 123 4567',
-            method: 'M-Pesa',
-            pixKey: '84 123 4567',
-            address: 'Maputo, Moçambique',
-            notes: 'Primeiro saque do usuário'
-          },
-          {
-            id: 'WD002',
-            userId: '2',
-            username: 'ana_costa',
-            email: 'ana.costa@hotmail.com',
-            type: 'withdrawal',
-            amount: 75,
-            date: '2024-01-26',
-            status: 'completed',
-            source: 'user',
-            phone: '+258 87 987 6543',
-            method: 'E-Mola',
-            pixKey: '87 987 6543',
-            address: 'Beira, Moçambique'
-          },
-          {
-            id: 'WD003',
-            userId: '3',
-            username: 'joao_afiliado',
-            email: 'joao.marketing@gmail.com',
-            type: 'withdrawal',
-            amount: 300,
-            date: '2024-02-01',
-            status: 'pending',
-            source: 'affiliate',
-            phone: '+258 82 555 7777',
-            method: 'M-Pesa',
-            pixKey: '82 555 7777',
-            address: 'Nampula, Moçambique',
-            notes: 'Saque de comissões - 15 referidos ativos'
-          },
-          {
-            id: 'WD004',
-            userId: '4',
-            username: 'maria_santos',
-            email: 'maria.santos@yahoo.com',
-            type: 'withdrawal',
-            amount: 50,
-            date: '2024-02-05',
-            status: 'rejected',
-            source: 'user',
-            phone: '+258 86 111 2222',
-            method: 'E-Mola',
-            pixKey: '86 111 2222',
-            address: 'Matola, Moçambique',
-            notes: 'Rejeitado - dados bancários incorretos'
-          },
-          {
-            id: 'WD005',
-            userId: '1',
-            username: 'carlos_silva',
-            email: 'carlos.silva@gmail.com',
-            type: 'withdrawal',
-            amount: 200,
-            date: '2024-02-08',
-            status: 'pending',
-            source: 'user',
-            phone: '+258 84 123 4567',
-            method: 'M-Pesa',
-            pixKey: '84 123 4567',
-            address: 'Maputo, Moçambique'
-          },
-          {
-            id: 'WD006',
-            userId: '3',
-            username: 'joao_afiliado',
-            email: 'joao.marketing@gmail.com',
-            type: 'withdrawal',
-            amount: 450,
-            date: '2024-02-10',
-            status: 'pending',
-            source: 'affiliate',
-            phone: '+258 82 555 7777',
-            method: 'M-Pesa',
-            pixKey: '82 555 7777',
-            address: 'Nampula, Moçambique',
-            notes: 'Saque de comissões - 25 referidos ativos'
-          },
-          // Adicionar alguns depósitos também
-          {
-            id: 'DP001',
-            userId: '2',
-            username: 'ana_costa',
-            email: 'ana.costa@hotmail.com',
-            type: 'deposit',
-            amount: 100,
-            date: '2024-02-12',
-            status: 'completed',
-            source: 'user'
-          },
-          {
-            id: 'DP002',
-            userId: '4',
-            username: 'maria_santos',
-            email: 'maria.santos@yahoo.com',
-            type: 'deposit',
-            amount: 80,
-            date: '2024-02-13',
-            status: 'completed',
-            source: 'user'
-          }
-        ];
-        setTransactions(mockTransactions);
-        
-        console.log('🔥 Transações carregadas no AdminDashboard:', mockTransactions.length);
-        console.log('📊 Saques encontrados:', mockTransactions.filter(t => t.type === 'withdrawal').length);
-      } catch (error) {
-        console.error('Erro ao buscar transações:', error);
-        toast({
-          title: "Erro ao buscar transações",
-          description: "Tente novamente mais tarde.",
-          variant: "destructive",
-        })
-      }
-    };
-
-    fetchUsers();
-    fetchTransactions();
+    fetchRealData();
   }, [user, navigate]);
+
+  const fetchRealData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔥 Buscando dados reais do Firebase...');
+
+      // Buscar todos os usuários
+      const usersRef = collection(db, 'users');
+      const usersSnapshot = await getDocs(usersRef);
+      
+      const usersData = [];
+      const allTransactions = [];
+
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        const userInfo = {
+          id: doc.id,
+          username: userData.username || 'N/A',
+          email: userData.email || 'N/A',
+          createdAt: userData.createdAt || new Date().toISOString().split('T')[0],
+          balance: userData.balance || 0,
+          totalEarnings: userData.totalEarnings || 0,
+          affiliateBalance: userData.affiliateBalance || 0
+        };
+        
+        usersData.push(userInfo);
+
+        // Extrair transações do usuário
+        if (userData.transactions && Array.isArray(userData.transactions)) {
+          userData.transactions.forEach(transaction => {
+            allTransactions.push({
+              ...transaction,
+              userId: doc.id,
+              username: userData.username,
+              email: userData.email,
+              // Garantir que saques tenham as propriedades necessárias
+              phone: transaction.phone || userData.phone || 'N/A',
+              method: transaction.method || 'M-Pesa',
+              source: transaction.source || 'user',
+              pixKey: transaction.pixKey || transaction.phone || 'N/A',
+              address: transaction.address || 'N/A'
+            });
+          });
+        }
+      });
+
+      console.log('👥 Usuários encontrados:', usersData.length);
+      console.log('💰 Transações encontradas:', allTransactions.length);
+      
+      // Filtrar apenas saques para debug
+      const withdrawals = allTransactions.filter(t => t.type === 'withdrawal');
+      console.log('💸 Saques encontrados:', withdrawals.length);
+      console.log('📊 Detalhes dos saques:', withdrawals);
+
+      setUsers(usersData);
+      setTransactions(allTransactions);
+      
+      toast({
+        title: "Dados carregados com sucesso! 🎉",
+        description: `${usersData.length} usuários e ${allTransactions.length} transações encontradas.`,
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar dados do Firebase:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Verifique a conexão com o Firebase.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -224,21 +123,63 @@ const AdminDashboard = () => {
   const handleUpdateTransaction = async (transactionId: string, status: string, notes?: string) => {
     setIsUpdating(true);
     try {
-      // Atualizar transação localmente
+      console.log(`🔄 Atualizando transação ${transactionId} para status: ${status}`);
+
+      // Encontrar a transação e o usuário
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction) {
+        throw new Error('Transação não encontrada');
+      }
+
+      const userRef = doc(db, 'users', transaction.userId);
+      
+      // Buscar dados atuais do usuário
+      const usersRef = collection(db, 'users');
+      const usersSnapshot = await getDocs(usersRef);
+      let targetUserData = null;
+      
+      usersSnapshot.forEach((doc) => {
+        if (doc.id === transaction.userId) {
+          targetUserData = doc.data();
+        }
+      });
+
+      if (!targetUserData) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      // Atualizar a transação específica no array de transações
+      const updatedTransactions = targetUserData.transactions.map(t => 
+        t.id === transactionId 
+          ? { ...t, status, notes: notes || t.notes, updatedAt: new Date().toISOString() }
+          : t
+      );
+
+      // Atualizar no Firebase
+      await updateDoc(userRef, {
+        transactions: updatedTransactions
+      });
+
+      // Atualizar estado local
       setTransactions(prevTransactions =>
         prevTransactions.map(transaction =>
-          transaction.id === transactionId ? { ...transaction, status, notes } : transaction
+          transaction.id === transactionId 
+            ? { ...transaction, status, notes } 
+            : transaction
         )
       );
-  
+
+      const statusText = status === 'completed' ? 'Pago ✅' : 
+                        status === 'rejected' ? 'Rejeitado ❌' : status;
+
       toast({
         title: "Saque atualizado com sucesso! 🎉",
-        description: `Status alterado para: ${status === 'completed' ? 'Pago ✅' : status === 'rejected' ? 'Rejeitado ❌' : status}`,
+        description: `Status alterado para: ${statusText}`,
       });
       
-      console.log(`💰 Saque ${transactionId} marcado como: ${status}`);
+      console.log(`✅ Saque ${transactionId} atualizado para: ${status}`);
     } catch (error) {
-      console.error('Erro ao atualizar transação:', error);
+      console.error('❌ Erro ao atualizar transação:', error);
       toast({
         title: "Erro ao atualizar saque",
         description: "Tente novamente mais tarde.",
@@ -257,16 +198,35 @@ const AdminDashboard = () => {
     rejected: transactions.filter(t => t.type === 'withdrawal' && (t.status === 'rejected' || t.status === 'rejeitado')).length
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-400 mx-auto mb-4"></div>
+            <p className="text-white">Carregando dados reais do Firebase...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-6">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gold-500">🏛️ Painel Administrativo</h1>
           <p className="text-gray-400">Gerencie todos os saques e transações da plataforma em tempo real.</p>
+          <p className="text-sm text-green-400 mt-1">✅ Conectado ao Firebase - Dados Reais</p>
         </div>
-        <Button variant="destructive" onClick={() => { logout(); navigate('/login'); }}>
-          🚪 Logout
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchRealData} disabled={loading}>
+            🔄 Atualizar Dados
+          </Button>
+          <Button variant="destructive" onClick={() => { logout(); navigate('/login'); }}>
+            🚪 Logout
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -366,7 +326,7 @@ const AdminDashboard = () => {
         <TabsContent value="users" className="space-y-4">
           <Card className="bg-gray-800/50 border-gray-700">
             <CardHeader>
-              <CardTitle>Lista de Usuários</CardTitle>
+              <CardTitle>Lista de Usuários Reais</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -383,6 +343,8 @@ const AdminDashboard = () => {
                   <TableRow>
                     <TableHead>Username</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Total Ganhos</TableHead>
                     <TableHead>Data de Criação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -391,6 +353,8 @@ const AdminDashboard = () => {
                     <TableRow key={user.id} className="hover:bg-gray-700/50">
                       <TableCell>{user.username}</TableCell>
                       <TableCell>{user.email}</TableCell>
+                      <TableCell className="text-gold-400 font-bold">{user.balance} MT</TableCell>
+                      <TableCell className="text-green-400 font-bold">{user.totalEarnings} MT</TableCell>
                       <TableCell>{user.createdAt}</TableCell>
                     </TableRow>
                   ))}
@@ -459,51 +423,51 @@ const AdminDashboard = () => {
       </Tabs>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-			<DialogContent className="bg-gray-800 border-gray-700 text-white">
-				<DialogHeader>
-					<DialogTitle>Detalhes do Usuário</DialogTitle>
-					<DialogDescription>
-						Informações detalhadas sobre o usuário selecionado.
-					</DialogDescription>
-				</DialogHeader>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Usuário</DialogTitle>
+            <DialogDescription>
+              Informações detalhadas sobre o usuário selecionado.
+            </DialogDescription>
+          </DialogHeader>
 
-				{selectedUser ? (
-					<div className="space-y-4">
-						<div className="flex items-center gap-2">
-							<User className="h-5 w-5" />
-							<span className="font-bold">Username:</span>
-							<span>{selectedUser.username}</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<Mail className="h-5 w-5" />
-							<span className="font-bold">Email:</span>
-							<span>{selectedUser.email}</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<Calendar className="h-5 w-5" />
-							<span className="font-bold">Data de Criação:</span>
-							<span>{selectedUser.createdAt}</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<CreditCard className="h-5 w-5" />
-							<span className="font-bold">ID:</span>
-							<span className="font-mono">{selectedUser.id}</span>
-							<Button variant="outline" size="icon" className="ml-2" onClick={() => {
-								navigator.clipboard.writeText(selectedUser.id);
-								toast({ description: "ID copiado para a área de transferência." })
-							}}>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				) : (
-					<div className="text-center text-gray-500">
-						<AlertCircle className="h-6 w-6 mx-auto mb-2" />
-						Nenhum usuário selecionado.
-					</div>
-				)}
-			</DialogContent>
-		</Dialog>
+          {selectedUser ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                <span className="font-bold">Username:</span>
+                <span>{selectedUser.username}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                <span className="font-bold">Email:</span>
+                <span>{selectedUser.email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                <span className="font-bold">Data de Criação:</span>
+                <span>{selectedUser.createdAt}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                <span className="font-bold">ID:</span>
+                <span className="font-mono">{selectedUser.id}</span>
+                <Button variant="outline" size="icon" className="ml-2" onClick={() => {
+                  navigator.clipboard.writeText(selectedUser.id);
+                  toast({ description: "ID copiado para a área de transferência." })
+                }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500">
+              <AlertCircle className="h-6 w-6 mx-auto mb-2" />
+              Nenhum usuário selecionado.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
