@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navigation from "@/components/Navigation";
 import Index from "./pages/Index";
@@ -22,10 +22,28 @@ import { cronService } from "@/services/cronService";
 
 const queryClient = new QueryClient();
 
+// Componente para debug de rotas
+const RouteLogger = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    console.log('Route changed to:', location.pathname);
+    console.log('Location state:', location.state);
+    console.log('Search params:', location.search);
+  }, [location]);
+  
+  return null;
+};
+
 const App = () => {
   useEffect(() => {
     // Inicializar serviço de processamento automático
     cronService.start();
+    
+    // Log inicial para debug
+    console.log('App initialized');
+    console.log('Current URL:', window.location.href);
+    console.log('Current pathname:', window.location.pathname);
     
     return () => {
       cronService.stop();
@@ -39,6 +57,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <RouteLogger />
             <div className="min-h-screen">
               <Navigation />
               <Routes>
@@ -52,7 +71,7 @@ const App = () => {
                 <Route path="/affiliates" element={<Affiliates />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/admin" element={<Admin />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                {/* CATCH-ALL ROUTE - DEVE SER A ÚLTIMA */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
