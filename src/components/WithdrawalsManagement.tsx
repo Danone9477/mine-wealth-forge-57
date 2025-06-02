@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,9 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
     amount: t.amount,
     status: t.status,
     source: t.source,
-    date: t.date
+    date: t.date,
+    phone: t.phone,
+    method: t.method
   })));
 
   // Aplicar filtros
@@ -69,6 +70,14 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
     );
   };
 
+  // Calcular estatísticas
+  const stats = {
+    pending: withdrawalTransactions.filter(t => t.status === 'pending' || t.status === 'pendente').length,
+    completed: withdrawalTransactions.filter(t => t.status === 'completed' || t.status === 'pago').length,
+    rejected: withdrawalTransactions.filter(t => t.status === 'rejected' || t.status === 'rejeitado').length,
+    total: withdrawalTransactions.length
+  };
+
   return (
     <div className="space-y-6">
       {/* Estatísticas Rápidas */}
@@ -78,9 +87,8 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-yellow-400 text-sm">Pendentes</p>
-                <p className="text-2xl font-bold text-white">
-                  {withdrawalTransactions.filter(t => t.status === 'pending' || t.status === 'pendente').length}
-                </p>
+                <p className="text-2xl font-bold text-white">{stats.pending}</p>
+                <p className="text-xs text-yellow-300">Aguardando análise</p>
               </div>
               <div className="bg-yellow-500/20 p-2 rounded-lg">
                 <CreditCard className="h-6 w-6 text-yellow-400" />
@@ -94,9 +102,8 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-400 text-sm">Pagos</p>
-                <p className="text-2xl font-bold text-white">
-                  {withdrawalTransactions.filter(t => t.status === 'completed' || t.status === 'pago').length}
-                </p>
+                <p className="text-2xl font-bold text-white">{stats.completed}</p>
+                <p className="text-xs text-green-300">Transferências concluídas</p>
               </div>
               <div className="bg-green-500/20 p-2 rounded-lg">
                 <CreditCard className="h-6 w-6 text-green-400" />
@@ -110,9 +117,8 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-red-400 text-sm">Rejeitados</p>
-                <p className="text-2xl font-bold text-white">
-                  {withdrawalTransactions.filter(t => t.status === 'rejected' || t.status === 'rejeitado').length}
-                </p>
+                <p className="text-2xl font-bold text-white">{stats.rejected}</p>
+                <p className="text-xs text-red-300">Dados incorretos/outros</p>
               </div>
               <div className="bg-red-500/20 p-2 rounded-lg">
                 <CreditCard className="h-6 w-6 text-red-400" />
@@ -125,8 +131,9 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-400 text-sm">Total</p>
-                <p className="text-2xl font-bold text-white">{withdrawalTransactions.length}</p>
+                <p className="text-blue-400 text-sm">Total de Saques</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+                <p className="text-xs text-blue-300">Histórico completo</p>
               </div>
               <div className="bg-blue-500/20 p-2 rounded-lg">
                 <CreditCard className="h-6 w-6 text-blue-400" />
@@ -135,6 +142,25 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
           </CardContent>
         </Card>
       </div>
+
+      {/* Alerta de saques pendentes */}
+      {stats.pending > 0 && (
+        <Card className="bg-orange-900/20 border-orange-700/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-500/20 p-2 rounded-full">
+                <CreditCard className="h-5 w-5 text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-orange-400 font-bold">🚨 {stats.pending} Saques Aguardando Processamento!</h3>
+                <p className="text-orange-300 text-sm">
+                  Estes saques precisam da sua aprovação. Verifique os dados e processe-os o mais rápido possível.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filtros */}
       <Card className="bg-gray-800/50 border-gray-700">
@@ -196,7 +222,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Todos os Saques da Plataforma ({filteredTransactions.length})
+            💰 Todos os Saques da Plataforma ({filteredTransactions.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -204,15 +230,20 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
             <div className="text-center py-8 text-gray-400">
               <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhum saque encontrado com os filtros aplicados</p>
+              {searchTerm && (
+                <p className="text-sm mt-2">Tente limpar os filtros ou ajustar a busca</p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-gray-700">
+                    <TableHead className="text-gray-300">ID</TableHead>
                     <TableHead className="text-gray-300">Usuário</TableHead>
                     <TableHead className="text-gray-300">Tipo</TableHead>
                     <TableHead className="text-gray-300">Valor</TableHead>
+                    <TableHead className="text-gray-300">Método</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
                     <TableHead className="text-gray-300">Data</TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
@@ -221,6 +252,9 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
                 <TableBody>
                   {filteredTransactions.map((transaction) => (
                     <TableRow key={transaction.id} className="border-gray-700 hover:bg-gray-700/50">
+                      <TableCell>
+                        <span className="text-white font-mono text-sm">{transaction.id}</span>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
@@ -245,7 +279,12 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-gold-400 font-bold">{transaction.amount} MT</span>
+                        <span className="text-gold-400 font-bold text-lg">{transaction.amount} MT</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50">
+                          {transaction.method || 'N/A'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(transaction.status)}
