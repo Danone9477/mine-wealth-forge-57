@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDate, CreditCard, User, Mail, Copy, AlertCircle } from "lucide-react";
+import { Calendar, CreditCard, User, Mail, Copy, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
 import {
@@ -21,7 +21,7 @@ import {
 import WithdrawalsManagement from './WithdrawalsManagement';
 
 const AdminDashboard = () => {
-  const { authToken, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -31,31 +31,30 @@ const AdminDashboard = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    if (!authToken) {
+    if (!user) {
       navigate('/login');
       return;
     }
 
     const fetchUsers = async () => {
       try {
-        const response = await fetch('https://api.example.com/admin/users', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
+        // For now, using mock data since we don't have a real API
+        // In a real app, you would use Firebase or your backend API
+        const mockUsers = [
+          {
+            id: '1',
+            username: 'user1',
+            email: 'user1@example.com',
+            createdAt: '2024-01-15'
           },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            logout();
-            navigate('/login');
-            return;
+          {
+            id: '2', 
+            username: 'user2',
+            email: 'user2@example.com',
+            createdAt: '2024-01-20'
           }
-          throw new Error(`Erro ao buscar usuários: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setUsers(data);
+        ];
+        setUsers(mockUsers);
       } catch (error) {
         console.error('Erro ao buscar usuários:', error);
         toast({
@@ -68,24 +67,26 @@ const AdminDashboard = () => {
 
     const fetchTransactions = async () => {
       try {
-        const response = await fetch('https://api.example.com/admin/transactions', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
+        // Mock data for transactions
+        const mockTransactions = [
+          {
+            id: '1',
+            userId: 'user1',
+            type: 'withdrawal',
+            amount: 100,
+            date: '2024-01-25',
+            status: 'pending'
           },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            logout();
-            navigate('/login');
-            return;
+          {
+            id: '2',
+            userId: 'user2', 
+            type: 'deposit',
+            amount: 50,
+            date: '2024-01-26',
+            status: 'completed'
           }
-          throw new Error(`Erro ao buscar transações: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setTransactions(data);
+        ];
+        setTransactions(mockTransactions);
       } catch (error) {
         console.error('Erro ao buscar transações:', error);
         toast({
@@ -98,7 +99,7 @@ const AdminDashboard = () => {
 
     fetchUsers();
     fetchTransactions();
-  }, [authToken, navigate, logout]);
+  }, [user, navigate, logout]);
 
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,20 +109,8 @@ const AdminDashboard = () => {
   const handleUpdateTransaction = async (transactionId: string, status: string, notes?: string) => {
     setIsUpdating(true);
     try {
-      const response = await fetch(`https://api.example.com/admin/transactions/${transactionId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status, notes }),
-      });
-  
-      if (!response.ok) {
-        throw new Error(`Erro ao atualizar transação: ${response.status}`);
-      }
-  
-      // Atualizar a transação localmente
+      // In a real app, this would make an API call
+      // For now, just update locally
       setTransactions(prevTransactions =>
         prevTransactions.map(transaction =>
           transaction.id === transactionId ? { ...transaction, status, notes } : transaction
@@ -293,7 +282,7 @@ const AdminDashboard = () => {
 							<span>{selectedUser.email}</span>
 						</div>
 						<div className="flex items-center gap-2">
-							<CalendarDate className="h-5 w-5" />
+							<Calendar className="h-5 w-5" />
 							<span className="font-bold">Data de Criação:</span>
 							<span>{selectedUser.createdAt}</span>
 						</div>
