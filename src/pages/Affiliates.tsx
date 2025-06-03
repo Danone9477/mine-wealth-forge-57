@@ -42,7 +42,7 @@ const Affiliates = () => {
     activeReferralsList: userData?.affiliateStats?.activeReferralsList || []
   };
 
-  const minWithdraw = 300;
+  const minWithdraw = 1000;
 
   useEffect(() => {
     // Gerar código de afiliado se não existir

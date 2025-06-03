@@ -56,7 +56,7 @@ const Dashboard = () => {
   const completeTask = async () => {
     if (!userData || !canCompleteTask) return;
 
-    const baseTaskReward = 25;
+    const baseTaskReward = 18;
     const minerBonus = userData.miners?.reduce((total, miner) => {
       if (!miner.isActive && !miner.active) return total;
       const expiryDate = new Date(miner.expiryDate);
@@ -401,7 +401,7 @@ const Dashboard = () => {
                 Tarefa Diária
               </CardTitle>
               <CardDescription className="text-green-200">
-                Complete e ganhe 25 MT + bônus dos mineradores
+                Complete e ganhe 18 MT + bônus dos mineradores
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -423,7 +423,7 @@ const Dashboard = () => {
                 <Progress value={canCompleteTask ? 0 : 100} className="h-2" />
                 <p className="text-sm text-green-200">
                   {canCompleteTask ? 
-                    `Ganhe ${25 + activeMinerEarnings} MT hoje!` : 
+                    `Ganhe ${18 + activeMinerEarnings} MT hoje!` : 
                     'Tarefa concluída hoje!'}
                 </p>
               </div>
