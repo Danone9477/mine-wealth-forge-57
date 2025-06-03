@@ -56,28 +56,22 @@ const Dashboard = () => {
   const completeTask = async () => {
     if (!userData || !canCompleteTask) return;
 
-    const baseTaskReward = 18;
-    const minerBonus = userData.miners?.reduce((total, miner) => {
-      if (!miner.isActive && !miner.active) return total;
-      const expiryDate = new Date(miner.expiryDate);
-      return expiryDate > new Date() ? total + (miner.dailyReturn || 0) : total;
-    }, 0) || 0;
-    
-    const totalReward = baseTaskReward + minerBonus;
+    // Tarefa diária agora adiciona EXATAMENTE 18 MT, sem bônus dos mineradores
+    const taskReward = 18;
     const today = new Date().toDateString();
     
     const transaction = {
       id: Date.now().toString(),
       type: 'task' as const,
-      amount: totalReward,
+      amount: taskReward,
       status: 'success' as const,
       date: new Date().toISOString(),
-      description: `Tarefa diária completada (${baseTaskReward} MT base + ${minerBonus} MT dos mineradores)`
+      description: `Tarefa diária completada - ${taskReward} MT`
     };
     
     await updateUserData({
-      balance: userData.balance + totalReward,
-      totalEarnings: userData.totalEarnings + totalReward,
+      balance: userData.balance + taskReward,
+      totalEarnings: userData.totalEarnings + taskReward,
       lastTaskDate: today,
       transactions: [...(userData.transactions || []), transaction]
     });
@@ -85,7 +79,7 @@ const Dashboard = () => {
     setCanCompleteTask(false);
     toast({
       title: "Tarefa completada! 🎉",
-      description: `Você ganhou ${totalReward} MT!`,
+      description: `Você ganhou ${taskReward} MT!`,
     });
   };
 
@@ -401,7 +395,7 @@ const Dashboard = () => {
                 Tarefa Diária
               </CardTitle>
               <CardDescription className="text-green-200">
-                Complete e ganhe 18 MT + bônus dos mineradores
+                Complete e ganhe 18 MT
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -422,9 +416,7 @@ const Dashboard = () => {
                 </div>
                 <Progress value={canCompleteTask ? 0 : 100} className="h-2" />
                 <p className="text-sm text-green-200">
-                  {canCompleteTask ? 
-                    `Ganhe ${18 + activeMinerEarnings} MT hoje!` : 
-                    'Tarefa concluída hoje!'}
+                  {canCompleteTask ? 'Ganhe 18 MT hoje!' : 'Tarefa concluída hoje!'}
                 </p>
               </div>
             </CardContent>

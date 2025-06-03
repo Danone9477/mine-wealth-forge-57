@@ -27,10 +27,12 @@ const Login = () => {
     
     try {
       await login(formData.emailOrUsername, formData.password);
+      // Só navega se o login for bem-sucedido
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      // Permanece na tela de login em caso de erro
+      // Mantém na tela de login quando há erro
+      // O toast de erro já é mostrado pelo contexto de auth
     } finally {
       setLoading(false);
     }

@@ -1,207 +1,161 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, TrendingUp, Shield, Zap, Users, Award, Clock, DollarSign, Pickaxe, Coins, Star, Crown, Diamond, Gem } from "lucide-react";
-import CryptoSection from "@/components/CryptoSection";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRight, Coins, TrendingUp, Shield, Users, Star, CheckCircle, Smartphone, Wallet, Globe, Award, Target, Zap } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
-  const minerTypes = [
+  const { user } = useAuth();
+
+  const features = [
     {
-      id: 'basic',
-      name: 'MineCrypto Basic',
-      price: 380,
-      dailyReturn: 44,
-      duration: 30,
-      description: 'Perfeito para começar sua jornada na mineração',
-      roi: '350%',
-      icon: Pickaxe,
-      color: 'from-blue-500 to-blue-600',
-      bgGradient: 'from-blue-900/20 to-blue-800/20',
-      totalReturn: 1330,
-      features: ['Mineração 24/7', 'Suporte básico', 'Retorno 350% em 30 dias']
+      icon: Coins,
+      title: "Mineração Inteligente",
+      description: "Algoritmos avançados de mineração que maximizam seus retornos diários",
+      color: "from-gold-500 to-gold-600"
     },
     {
-      id: 'premium',
-      name: 'MineCrypto Premium',
-      price: 1140,
-      dailyReturn: 133,
-      duration: 30,
-      description: 'Alta performance e retorno garantido',
-      roi: '350%',
-      icon: Star,
-      color: 'from-gold-500 to-gold-600',
-      bgGradient: 'from-gold-900/20 to-gold-800/20',
-      totalReturn: 3990,
-      features: ['Mineração 24/7', 'Suporte VIP', 'Retorno 350% em 30 dias']
+      icon: TrendingUp,
+      title: "Retornos Consistentes",
+      description: "Ganhos diários garantidos com nossa tecnologia de ponta",
+      color: "from-green-500 to-green-600"
     },
     {
-      id: 'elite',
-      name: 'MineCrypto Elite',
-      price: 1900,
-      dailyReturn: 221,
-      duration: 30,
-      description: 'Para investidores de elite',
-      roi: '350%',
-      icon: Crown,
-      color: 'from-red-500 to-red-600',
-      bgGradient: 'from-red-900/20 to-red-800/20',
-      totalReturn: 6650,
-      features: ['Mineração 24/7', 'Suporte exclusivo', 'Retorno 350% em 30 dias']
+      icon: Shield,
+      title: "Segurança Total",
+      description: "Sua segurança é nossa prioridade com criptografia de nível militar",
+      color: "from-blue-500 to-blue-600"
+    },
+    {
+      icon: Users,
+      title: "Programa de Afiliados",
+      description: "Ganhe comissões convidando amigos para nossa plataforma",
+      color: "from-purple-500 to-purple-600"
     }
   ];
 
+  const testimonials = [
+    {
+      name: "Maria Silva",
+      location: "Maputo",
+      text: "Em 3 meses já recuperei meu investimento inicial. Incrível!",
+      rating: 5,
+      avatar: "👩‍💼"
+    },
+    {
+      name: "João Santos",
+      location: "Beira",
+      text: "Plataforma confiável, saques rápidos. Recomendo!",
+      rating: 5,
+      avatar: "👨‍💻"
+    },
+    {
+      name: "Ana Costa",
+      location: "Nampula",
+      text: "Suporte excelente e ganhos consistentes todos os dias.",
+      rating: 5,
+      avatar: "👩‍🎓"
+    }
+  ];
+
+  const stats = [
+    { label: "Usuários Ativos", value: "15,000+", icon: Users },
+    { label: "MT Distribuídos", value: "2.5M", icon: Coins },
+    { label: "Taxa de Satisfação", value: "98%", icon: Star },
+    { label: "Países", value: "5+", icon: Globe }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden">
       {/* Hero Section */}
-      <section className="relative px-4 py-12 sm:py-16 lg:py-24">
-        <div className="absolute inset-0 bg-gradient-to-r from-gold-600/10 to-transparent"></div>
-        <div className="relative max-w-7xl mx-auto">
-          <div className="text-center lg:text-center mb-12">
-            <Badge className="mb-4 bg-gold-400 text-gray-900 text-xs sm:text-sm font-semibold px-3 py-1 sm:px-4 sm:py-2">
-              🚀 Ganhe até 15% ao dia com ROI de 350%!
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-                Mineração Automática
+      <section className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-gold-600/10 to-purple-600/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+          <div className="text-center">
+            <div className="mb-8">
+              <Badge className="bg-gradient-to-r from-gold-500 to-gold-600 text-black font-semibold px-4 py-2 text-sm">
+                🏆 #1 Plataforma de Mineração em Moçambique
+              </Badge>
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Mine Wealth
               </span>
               <br />
-              <span className="text-white">de Criptomoedas</span>
-            </h1>
-            <p className="text-lg sm:text-xl text-gray-300 mb-8 leading-relaxed max-w-4xl mx-auto">
-              Invista em nossos mineradores profissionais e obtenha retornos garantidos de 350% em 30 dias. 
-              <span className="text-gold-400 font-semibold"> Tecnologia blockchain avançada para máxima rentabilidade!</span>
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild className="bg-gradient-gold text-gray-900 hover:bg-gold-500 font-bold text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 h-auto">
-                <a href="/register">
-                  Começar Agora <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="border-gold-400 text-gold-400 hover:bg-gold-400/10 font-semibold text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 h-auto">
-                <a href="/login">Fazer Login</a>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-8 sm:py-12 px-4 bg-gray-800/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-gradient-to-r from-green-500/20 to-green-600/20 backdrop-blur-sm border border-green-500/30 rounded-xl p-4 text-center">
-              <div className="flex items-center gap-2 justify-center mb-2">
-                <Users className="h-6 w-6 text-green-400" />
-                <div className="text-2xl sm:text-3xl font-bold text-green-400">15,247</div>
-              </div>
-              <div className="text-gray-300 text-sm sm:text-base">Usuários Ativos</div>
-            </div>
-            <div className="bg-gradient-to-r from-gold-500/20 to-gold-600/20 backdrop-blur-sm border border-gold-500/30 rounded-xl p-4 text-center">
-              <div className="flex items-center gap-2 justify-center mb-2">
-                <Coins className="h-6 w-6 text-gold-400" />
-                <div className="text-2xl sm:text-3xl font-bold text-gold-400">2.8M MT</div>
-              </div>
-              <div className="text-gray-300 text-sm sm:text-base">Pagos Hoje</div>
-            </div>
-            <div className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 backdrop-blur-sm border border-blue-500/30 rounded-xl p-4 text-center">
-              <div className="flex items-center gap-2 justify-center mb-2">
-                <Shield className="h-6 w-6 text-blue-400" />
-                <div className="text-2xl sm:text-3xl font-bold text-blue-400">99.9%</div>
-              </div>
-              <div className="text-gray-300 text-sm sm:text-base">Uptime</div>
-            </div>
-            <div className="bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/30 rounded-xl p-4 text-center">
-              <div className="flex items-center gap-2 justify-center mb-2">
-                <Clock className="h-6 w-6 text-purple-400" />
-                <div className="text-2xl sm:text-3xl font-bold text-purple-400">24/7</div>
-              </div>
-              <div className="text-gray-300 text-sm sm:text-base">Suporte</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Crypto Section */}
-      <CryptoSection />
-
-      {/* Miners Preview with new design */}
-      <section className="py-12 sm:py-16 lg:py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-4">
               <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-                Mineradores Premium
+                Sua Riqueza Digital
               </span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+              Transforme seus <span className="text-gold-400 font-semibold">Meticais</span> em uma fonte de renda passiva. 
+              Mineração inteligente com retornos diários garantidos.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              {!user ? (
+                <>
+                  <Button asChild size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold text-lg px-8 py-4">
+                    <a href="/register">
+                      Começar Agora <ArrowRight className="ml-2 h-5 w-5" />
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-black font-semibold text-lg px-8 py-4">
+                    <a href="/login">Fazer Login</a>
+                  </Button>
+                </>
+              ) : (
+                <Button asChild size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold text-lg px-8 py-4">
+                  <a href="/dashboard">
+                    Ir para Dashboard <ArrowRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {stats.map((stat, index) => {
+                const IconComponent = stat.icon;
+                return (
+                  <div key={index} className="text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-gold-500/20 to-gold-600/20 rounded-full mb-3">
+                      <IconComponent className="h-6 w-6 text-gold-400" />
+                    </div>
+                    <div className="text-2xl md:text-3xl font-bold text-white mb-1">{stat.value}</div>
+                    <div className="text-gray-400 text-sm">{stat.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Por que escolher <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Mine Wealth</span>?
             </h2>
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
-              Invista em nossos mineradores de alta performance e obtenha retornos garantidos de 350% em 30 dias
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Nossa plataforma oferece as melhores oportunidades de investimento em mineração digital de Moçambique
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {minerTypes.map((miner) => {
-              const IconComponent = miner.icon;
-              
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {features.map((feature, index) => {
+              const IconComponent = feature.icon;
               return (
-                <Card key={miner.id} className={`bg-gradient-to-br ${miner.bgGradient} backdrop-blur-sm border-gray-700 hover:border-gold-500/50 transition-all duration-300 transform hover:scale-105`}>
-                  <CardHeader className="text-center">
-                    <div className="flex justify-center mb-4">
-                      <div className={`p-4 rounded-full bg-gradient-to-r ${miner.color} shadow-lg`}>
-                        <IconComponent className="h-8 w-8 text-white" />
-                      </div>
+                <Card key={index} className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700 hover:scale-105 transition-transform duration-300">
+                  <CardContent className="p-6 text-center">
+                    <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${feature.color} rounded-full mb-4`}>
+                      <IconComponent className="h-8 w-8 text-white" />
                     </div>
-                    <CardTitle className="text-white text-xl mb-2">{miner.name}</CardTitle>
-                    <CardDescription className="text-gray-300">{miner.description}</CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-6">
-                    {/* Investment and Daily Return */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                        <p className="text-gray-400 text-sm mb-1">Investimento</p>
-                        <p className="text-2xl font-bold text-white">{miner.price} MT</p>
-                      </div>
-                      <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                        <p className="text-gray-400 text-sm mb-1">Ganho/Dia</p>
-                        <p className="text-2xl font-bold text-green-400">{miner.dailyReturn} MT</p>
-                      </div>
-                    </div>
-
-                    {/* Duration and Total Return */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                        <p className="text-gray-400 text-sm mb-1">Duração</p>
-                        <p className="text-xl font-bold text-blue-400">30 dias</p>
-                      </div>
-                      <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                        <p className="text-gray-400 text-sm mb-1">Lucro Total</p>
-                        <p className="text-xl font-bold text-gold-400">{miner.totalReturn.toLocaleString()} MT</p>
-                      </div>
-                    </div>
-                    
-                    {/* Features */}
-                    <div className="space-y-2">
-                      {miner.features.map((feature, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-gold-400 rounded-full"></div>
-                          <span className="text-gray-300 text-sm">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* ROI Badge */}
-                    <div className="text-center">
-                      <Badge className={`bg-gradient-to-r ${miner.color} text-white px-4 py-2 text-lg`}>
-                        ROI {miner.roi}
-                      </Badge>
-                    </div>
-                    
-                    {/* Purchase Button */}
-                    <Button asChild className={`w-full h-12 font-semibold text-lg bg-gradient-to-r ${miner.color} text-white hover:opacity-90 shadow-lg`}>
-                      <a href="/register">
-                        Investir {miner.price} MT
-                      </a>
-                    </Button>
+                    <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                    <p className="text-gray-300">{feature.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -210,152 +164,168 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-12 sm:py-16 lg:py-20 px-4 bg-gray-800/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-4">
-              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-                Por que escolher a Alpha Traders?
-              </span>
+      {/* How it Works Section */}
+      <section className="py-20 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Como <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Funciona</span>
             </h2>
-            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
-              A plataforma mais confiável e lucrativa para mineração de criptomoedas em Moçambique
-            </p>
+            <p className="text-xl text-gray-300">Comece a ganhar em 3 passos simples</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="h-6 w-6 text-gray-900" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-6 relative">
+                <span className="text-2xl font-bold text-white">1</span>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gold-400 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-black" />
                 </div>
-                <CardTitle className="text-white">Retornos Garantidos</CardTitle>
-                <CardDescription className="text-gray-300">
-                  ROI de 350% garantido em 30 dias com nossos mineradores profissionais
-                </CardDescription>
-              </CardHeader>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Registre-se</h3>
+              <p className="text-gray-300">Crie sua conta gratuita em menos de 2 minutos. É rápido e seguro.</p>
+            </div>
+
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 rounded-full mb-6 relative">
+                <span className="text-2xl font-bold text-white">2</span>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gold-400 rounded-full flex items-center justify-center">
+                  <Coins className="h-4 w-4 text-black" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Deposite Fundos</h3>
+              <p className="text-gray-300">Faça um depósito via <span className="text-green-400 font-semibold">M-Pesa</span> ou <span className="text-blue-400 font-semibold">E-Mola</span>. Valor mínimo: 100 MT.</p>
+            </div>
+
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full mb-6 relative">
+                <span className="text-2xl font-bold text-white">3</span>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gold-400 rounded-full flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-black" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">Comece a Ganhar</h3>
+              <p className="text-gray-300">Compre mineradores e receba ganhos diários automáticos. Simples assim!</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Payment Methods Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Pagamentos</span> Seguros
+            </h2>
+            <p className="text-xl text-gray-300">Métodos de pagamento populares em Moçambique</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+              <CardContent className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 rounded-full mb-6">
+                  <Smartphone className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">M-Pesa</h3>
+                <p className="text-green-200 mb-6">Pagamentos rápidos e seguros via M-Pesa. Disponível 24/7.</p>
+                <Badge className="bg-green-600 text-white px-4 py-2">Ativo</Badge>
+              </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <Shield className="h-6 w-6 text-gray-900" />
+            <Card className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border-blue-500/30 backdrop-blur-sm hover:scale-105 transition-transform">
+              <CardContent className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-6">
+                  <Wallet className="h-10 w-10 text-white" />
                 </div>
-                <CardTitle className="text-white">100% Seguro</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Seus investimentos protegidos por tecnologia blockchain avançada
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="h-6 w-6 text-gray-900" />
-                </div>
-                <CardTitle className="text-white">Pagamentos via MozPayment</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Depósitos e saques instantâneos via e-Mola e M-Pesa
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <Clock className="h-6 w-6 text-gray-900" />
-                </div>
-                <CardTitle className="text-white">Mineração 24/7</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Seus mineradores trabalham sem parar, gerando renda passiva
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-gray-900" />
-                </div>
-                <CardTitle className="text-white">Comunidade Ativa</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Junte-se a milhares de investidores bem-sucedidos
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-600 hover:border-gold-400/50 transition-all duration-300">
-              <CardHeader>
-                <div className="w-12 h-12 bg-gradient-gold rounded-lg flex items-center justify-center mb-4">
-                  <DollarSign className="h-6 w-6 text-gray-900" />
-                </div>
-                <CardTitle className="text-white">Depósito Mínimo Baixo</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Comece a investir com apenas 100 MT
-                </CardDescription>
-              </CardHeader>
+                <h3 className="text-2xl font-bold text-white mb-4">E-Mola</h3>
+                <p className="text-blue-200 mb-6">Integração completa com E-Mola para máxima conveniência.</p>
+                <Badge className="bg-blue-600 text-white px-4 py-2">Ativo</Badge>
+              </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Security Section */}
-      <section className="py-12 sm:py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <Card className="bg-gradient-to-r from-green-900/30 to-green-800/30 border-green-700/50 backdrop-blur-sm">
-            <CardContent className="p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <Shield className="h-10 w-10 text-green-400" />
-                <h3 className="text-2xl font-bold text-white">Garantia de Segurança Total</h3>
-              </div>
-              <p className="text-gray-300 mb-6 text-lg">
-                Todos os mineradores são processados automaticamente com tecnologia blockchain avançada. 
-                Os ganhos são creditados diariamente com garantia de retorno de 350% em 30 dias.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400 mb-2">100%</div>
-                  <div className="text-gray-300">Automático</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400 mb-2">350%</div>
-                  <div className="text-gray-300">ROI Garantido</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400 mb-2">30</div>
-                  <div className="text-gray-300">Dias de Duração</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-400 mb-2">24/7</div>
-                  <div className="text-gray-300">Funcionamento</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Testimonials Section */}
+      <section className="py-20 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              O que nossos <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">clientes</span> dizem
+            </h2>
+            <p className="text-xl text-gray-300">Histórias reais de sucesso de nossos investidores</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <Card key={index} className="bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700">
+                <CardContent className="p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="text-3xl mr-3">{testimonial.avatar}</div>
+                    <div>
+                      <h4 className="text-white font-semibold">{testimonial.name}</h4>
+                      <p className="text-gray-400 text-sm">{testimonial.location}</p>
+                    </div>
+                  </div>
+                  <div className="flex mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 text-gold-400 fill-current" />
+                    ))}
+                  </div>
+                  <p className="text-gray-300 italic">"{testimonial.text}"</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 sm:py-16 lg:py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
-              Comece a Ganhar Hoje!
-            </span>
+      <section className="py-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-gold-600/10 to-purple-600/10"></div>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Pronto para <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">começar</span>?
           </h2>
-          <p className="text-lg sm:text-xl text-gray-300 mb-8">
-            Junte-se a milhares de investidores que já estão ganhando dinheiro automaticamente com ROI de 350%
+          <p className="text-xl text-gray-300 mb-8">
+            Junte-se a milhares de moçambicanos que já estão construindo sua riqueza digital
           </p>
+          
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="bg-gradient-gold text-gray-900 hover:bg-gold-500 font-bold text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 h-auto">
-              <a href="/register">
-                Criar Conta Grátis <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-              </a>
-            </Button>
-            <Button asChild variant="outline" className="border-gold-400 text-gold-400 hover:bg-gold-400/10 font-semibold text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 h-auto">
-              <a href="/login">Já tenho conta</a>
-            </Button>
+            {!user ? (
+              <>
+                <Button asChild size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold text-lg px-8 py-4">
+                  <a href="/register">
+                    Registrar Agora <ArrowRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-black font-semibold text-lg px-8 py-4">
+                  <a href="/login">Fazer Login</a>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold text-lg px-8 py-4">
+                <a href="/dashboard">
+                  Acessar Dashboard <ArrowRight className="ml-2 h-5 w-5" />
+                </a>
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <Shield className="h-8 w-8 text-gold-400" />
+              <span className="text-white font-semibold">100% Seguro</span>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <Zap className="h-8 w-8 text-gold-400" />
+              <span className="text-white font-semibold">Ganhos Diários</span>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <Award className="h-8 w-8 text-gold-400" />
+              <span className="text-white font-semibold">Suporte 24/7</span>
+            </div>
           </div>
         </div>
       </section>
