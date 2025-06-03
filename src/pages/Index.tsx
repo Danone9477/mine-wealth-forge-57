@@ -61,10 +61,34 @@ const Index = () => {
   ];
 
   const stats = [
-    { label: "Usuários Ativos", value: "15,000+", icon: Users },
-    { label: "MT Distribuídos", value: "2.5M", icon: Coins },
-    { label: "Taxa de Satisfação", value: "98%", icon: Star },
-    { label: "Países", value: "5+", icon: Globe }
+    { 
+      label: "Usuários Ativos", 
+      value: "15,000+", 
+      icon: Users,
+      gradient: "from-blue-500 to-blue-600",
+      bgGradient: "from-blue-900/20 to-blue-800/20"
+    },
+    { 
+      label: "MT Distribuídos", 
+      value: "2.5M", 
+      icon: Coins,
+      gradient: "from-gold-500 to-gold-600", 
+      bgGradient: "from-gold-900/20 to-gold-800/20"
+    },
+    { 
+      label: "Taxa de Satisfação", 
+      value: "98%", 
+      icon: Star,
+      gradient: "from-green-500 to-green-600",
+      bgGradient: "from-green-900/20 to-green-800/20"
+    },
+    { 
+      label: "Países", 
+      value: "5+", 
+      icon: Globe,
+      gradient: "from-purple-500 to-purple-600",
+      bgGradient: "from-purple-900/20 to-purple-800/20"
+    }
   ];
 
   return (
@@ -95,7 +119,7 @@ const Index = () => {
               Mineração inteligente com retornos diários garantidos.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               {!user ? (
                 <>
                   <Button asChild size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold text-lg px-8 py-4">
@@ -116,20 +140,51 @@ const Index = () => {
               )}
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => {
-                const IconComponent = stat.icon;
-                return (
-                  <div key={index} className="text-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-gold-500/20 to-gold-600/20 rounded-full mb-3">
-                      <IconComponent className="h-6 w-6 text-gold-400" />
+            {/* Enhanced Stats Section */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-gold-500/5 to-purple-500/5 rounded-3xl blur-3xl"></div>
+              <div className="relative bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 sm:p-12">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                  {stats.map((stat, index) => {
+                    const IconComponent = stat.icon;
+                    return (
+                      <div key={index} className={`relative group hover:scale-105 transition-all duration-300`}>
+                        <div className={`absolute inset-0 bg-gradient-to-r ${stat.bgGradient} rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                        <div className="relative text-center p-6">
+                          <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${stat.gradient} rounded-2xl mb-4 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
+                            <IconComponent className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="text-3xl md:text-4xl font-bold text-white mb-2 group-hover:text-gold-400 transition-colors duration-300">
+                            {stat.value}
+                          </div>
+                          <div className="text-gray-400 text-sm font-medium group-hover:text-gray-300 transition-colors duration-300">
+                            {stat.label}
+                          </div>
+                          <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-1 bg-gradient-to-r ${stat.gradient} group-hover:w-full transition-all duration-300 rounded-full`}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Trust Indicators */}
+                <div className="mt-8 pt-8 border-t border-gray-700/50">
+                  <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-green-400" />
+                      <span>Segurança Garantida</span>
                     </div>
-                    <div className="text-2xl md:text-3xl font-bold text-white mb-1">{stat.value}</div>
-                    <div className="text-gray-400 text-sm">{stat.label}</div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-blue-400" />
+                      <span>Pagamentos Automáticos</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-gold-400" />
+                      <span>Processamento às 10h</span>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { processDailyMinerRewards } from './minerService';
 class CronService {
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private lastProcessingDate: string | null = null;
 
   start() {
     if (this.isRunning) {
@@ -11,23 +12,35 @@ class CronService {
       return;
     }
 
-    console.log('Iniciando serviço de processamento automático de mineradores');
+    console.log('Iniciando serviço de processamento automático de mineradores - Pagamentos às 10h');
     
-    // Processar a cada hora (3600000 ms)
+    // Verificar a cada 30 minutos se é hora de processar (10h)
     this.intervalId = setInterval(async () => {
-      try {
-        console.log('Processando recompensas automáticas dos mineradores...');
-        await processDailyMinerRewards();
-        console.log('Recompensas processadas com sucesso');
-      } catch (error) {
-        console.error('Erro no processamento automático:', error);
-      }
-    }, 3600000); // 1 hora
+      await this.checkAndProcess();
+    }, 1800000); // 30 minutos
 
     this.isRunning = true;
     
-    // Processar uma vez imediatamente ao iniciar
-    this.processNow();
+    // Verificar imediatamente ao iniciar
+    this.checkAndProcess();
+  }
+
+  private async checkAndProcess() {
+    try {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const today = now.toDateString();
+      
+      // SEGURANÇA: Processar apenas às 10h e somente uma vez por dia
+      if (currentHour === 10 && this.lastProcessingDate !== today) {
+        console.log('Processando recompensas automáticas dos mineradores às 10h...');
+        await processDailyMinerRewards();
+        this.lastProcessingDate = today;
+        console.log('Recompensas processadas com sucesso às 10h');
+      }
+    } catch (error) {
+      console.error('Erro no processamento automático às 10h:', error);
+    }
   }
 
   stop() {
@@ -36,6 +49,7 @@ class CronService {
       this.intervalId = null;
     }
     this.isRunning = false;
+    this.lastProcessingDate = null;
     console.log('Serviço de processamento automático parado');
   }
 
@@ -43,6 +57,7 @@ class CronService {
     try {
       console.log('Processamento manual iniciado...');
       await processDailyMinerRewards();
+      this.lastProcessingDate = new Date().toDateString();
       console.log('Processamento manual concluído');
     } catch (error) {
       console.error('Erro no processamento manual:', error);
@@ -52,7 +67,9 @@ class CronService {
   getStatus() {
     return {
       isRunning: this.isRunning,
-      intervalId: this.intervalId
+      intervalId: this.intervalId,
+      lastProcessingDate: this.lastProcessingDate,
+      nextProcessingTime: '10:00 AM daily'
     };
   }
 }

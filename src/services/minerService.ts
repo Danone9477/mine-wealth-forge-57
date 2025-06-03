@@ -24,7 +24,11 @@ export const processDailyMinerRewards = async () => {
     const snapshot = await getDocs(usersRef);
     
     const now = new Date();
-    const today = now.toDateString();
+    // Definir horário fixo às 10h para processamento diário
+    const processingTime = new Date();
+    processingTime.setHours(10, 0, 0, 0);
+    
+    const today = processingTime.toDateString();
     
     for (const userDoc of snapshot.docs) {
       const userData = userDoc.data();
@@ -36,7 +40,7 @@ export const processDailyMinerRewards = async () => {
         if (!miner.isActive && !miner.active) return miner;
         
         const expiryDate = new Date(miner.expiryDate);
-        const lastProcessed = miner.lastProcessed ? new Date(miner.lastProcessed) : new Date(miner.purchaseDate);
+        const lastProcessed = miner.lastProcessed ? new Date(miner.lastProcessed).toDateString() : null;
         
         // Calcular dias restantes
         const daysRemaining = Math.max(0, Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
@@ -52,8 +56,8 @@ export const processDailyMinerRewards = async () => {
           };
         }
         
-        // Verificar se já foi processado hoje
-        if (lastProcessed.toDateString() === today) {
+        // SEGURANÇA: Verificar se já foi processado hoje - comparar apenas a data, não o horário
+        if (lastProcessed === today) {
           return {
             ...miner,
             daysRemaining,
@@ -62,22 +66,40 @@ export const processDailyMinerRewards = async () => {
           };
         }
         
-        // Adicionar ganho diário
+        // SEGURANÇA: Verificar se já existe transação de mineração hoje para este usuário
+        const todayTransactions = userData.transactions || [];
+        const hasTodayMiningTransaction = todayTransactions.some((transaction: any) => {
+          const transactionDate = new Date(transaction.date).toDateString();
+          return transactionDate === today && 
+                 (transaction.type === 'mining_reward' || transaction.type === 'mining') &&
+                 transaction.description?.includes(miner.name);
+        });
+        
+        if (hasTodayMiningTransaction) {
+          return {
+            ...miner,
+            daysRemaining,
+            isActive: true,
+            active: true
+          };
+        }
+        
+        // Adicionar ganho diário somente se não foi processado hoje
         dailyEarnings += miner.dailyReturn;
         hasChanges = true;
         
         return {
           ...miner,
           totalEarned: (miner.totalEarned || 0) + miner.dailyReturn,
-          lastProcessed: now.toISOString(),
-          lastCollection: now.toISOString(),
+          lastProcessed: processingTime.toISOString(),
+          lastCollection: processingTime.toISOString(),
           daysRemaining,
           isActive: true,
           active: true
         };
       });
       
-      if (hasChanges) {
+      if (hasChanges && dailyEarnings > 0) {
         const newBalance = (userData.balance || 0) + dailyEarnings;
         const newTotalEarnings = (userData.totalEarnings || 0) + dailyEarnings;
         
@@ -92,30 +114,34 @@ export const processDailyMinerRewards = async () => {
           )
           .reduce((sum: number, transaction: any) => sum + transaction.amount, 0) + dailyEarnings;
         
-        // Adicionar transação de mineração se houve ganhos
-        const updatedTransactions = userData.transactions || [];
-        if (dailyEarnings > 0) {
-          const miningTransaction = {
-            id: Date.now().toString(),
-            type: 'mining_reward',
-            amount: dailyEarnings,
-            status: 'success',
-            date: now.toISOString(),
-            description: 'Ganhos automáticos dos mineradores'
-          };
-          updatedTransactions.push(miningTransaction);
-        }
+        // SEGURANÇA: Criar transação única com timestamp específico
+        const miningTransaction = {
+          id: `mining_${Date.now()}_${userDoc.id}`,
+          type: 'mining_reward',
+          amount: dailyEarnings,
+          status: 'success',
+          date: processingTime.toISOString(),
+          description: `Ganhos automáticos diários - ${dailyEarnings} MT às 10h`
+        };
+        
+        const updatedTransactions = [...(userData.transactions || []), miningTransaction];
         
         await updateDoc(doc(db, 'users', userDoc.id), {
           miners: updatedMiners,
           balance: newBalance,
           totalEarnings: newTotalEarnings,
           monthlyEarnings: monthlyEarnings,
-          lastMinerUpdate: now.toISOString(),
+          lastMinerUpdate: processingTime.toISOString(),
           transactions: updatedTransactions
         });
         
-        console.log(`Processado ${dailyEarnings} MT para usuário ${userData.username}`);
+        console.log(`SEGURO: Processado ${dailyEarnings} MT para usuário ${userData.username} às 10h do dia ${today}`);
+      } else if (hasChanges) {
+        // Atualizar apenas os mineradores sem adicionar transações
+        await updateDoc(doc(db, 'users', userDoc.id), {
+          miners: updatedMiners,
+          lastMinerUpdate: now.toISOString()
+        });
       }
     }
   } catch (error) {
