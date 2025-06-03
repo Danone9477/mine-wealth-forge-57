@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -20,6 +20,7 @@ import {
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, userData, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
@@ -27,6 +28,7 @@ const Navigation = () => {
   const handleLogout = async () => {
     await logout();
     setIsMenuOpen(false);
+    navigate('/'); // Redirecionar para a tela inicial
   };
 
   const mainNavItems = [

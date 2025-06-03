@@ -140,7 +140,7 @@ const CryptoSection = () => {
 
         <div className="text-center mt-8">
           <p className="text-gray-400 text-sm">
-            Preços atualizados em tempo real • Suporte para mais de 50 criptomoedas
+            Preços atualizados em tempo real • Suporte para mais de 69 criptomoedas
           </p>
         </div>
       </div>

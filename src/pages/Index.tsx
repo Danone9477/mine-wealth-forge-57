@@ -1,8 +1,10 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Coins, TrendingUp, Shield, Users, Star, CheckCircle, Smartphone, Wallet, Globe, Award, Target, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import CryptoSection from '@/components/CryptoSection';
 
 const Index = () => {
   const { user } = useAuth();
@@ -133,6 +135,9 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Crypto Section */}
+      <CryptoSection />
+
       {/* Features Section */}
       <section className="py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -216,7 +221,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Pagamentos</span> Seguros
+              <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Pagamentos</span> via M-Pesa e E-Mola
             </h2>
             <p className="text-xl text-gray-300">Métodos de pagamento populares em Moçambique</p>
           </div>
