@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import AdminAccess from '@/components/AdminAccess';
 import { 
   Menu, 
   X, 
@@ -19,6 +20,8 @@ import {
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [showAdminAccess, setShowAdminAccess] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, userData, logout } = useAuth();
@@ -28,7 +31,23 @@ const Navigation = () => {
   const handleLogout = async () => {
     await logout();
     setIsMenuOpen(false);
-    navigate('/'); // Redirecionar para a tela inicial
+    navigate('/');
+  };
+
+  const handlePickaxeClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    console.log(`Clique na picareta: ${newCount}/5`);
+    
+    if (newCount === 5) {
+      setShowAdminAccess(true);
+      setClickCount(0);
+    }
+    
+    // Reset counter after 3 seconds of inactivity
+    setTimeout(() => {
+      setClickCount(0);
+    }, 3000);
   };
 
   const mainNavItems = [
@@ -46,7 +65,10 @@ const Navigation = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <Pickaxe className="h-8 w-8 text-gold-400" />
+              <Pickaxe 
+                className="h-8 w-8 text-gold-400 cursor-pointer transition-transform hover:scale-110" 
+                onClick={handlePickaxeClick}
+              />
               <span className="text-xl font-bold text-white">Mine Wealth</span>
             </Link>
             
@@ -84,6 +106,11 @@ const Navigation = () => {
             </div>
           )}
         </div>
+        
+        <AdminAccess 
+          isOpen={showAdminAccess} 
+          onClose={() => setShowAdminAccess(false)} 
+        />
       </nav>
     );
   }
@@ -93,7 +120,10 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-2">
-            <Pickaxe className="h-8 w-8 text-gold-400" />
+            <Pickaxe 
+              className="h-8 w-8 text-gold-400 cursor-pointer transition-transform hover:scale-110" 
+              onClick={handlePickaxeClick}
+            />
             <span className="text-xl font-bold text-white">Mine Wealth</span>
           </div>
           
@@ -186,6 +216,11 @@ const Navigation = () => {
           </div>
         )}
       </div>
+      
+      <AdminAccess 
+        isOpen={showAdminAccess} 
+        onClose={() => setShowAdminAccess(false)} 
+      />
     </nav>
   );
 };

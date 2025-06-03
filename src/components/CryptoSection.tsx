@@ -93,35 +93,36 @@ const CryptoSection = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* Grid responsivo que mantém organização no mobile */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {cryptoData.map((crypto) => (
             <Card key={crypto.symbol} className={`bg-gradient-to-br ${crypto.bgColor} backdrop-blur-sm border-gray-700 hover:border-gold-500/50 transition-all duration-300 transform hover:scale-105`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+              <CardHeader className="pb-2 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${crypto.color} flex items-center justify-center text-white font-bold text-lg`}>
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r ${crypto.color} flex items-center justify-center text-white font-bold text-sm sm:text-lg`}>
                       {crypto.icon}
                     </div>
-                    <div>
-                      <CardTitle className="text-white text-sm">{crypto.symbol}</CardTitle>
-                      <CardDescription className="text-gray-400 text-xs">{crypto.name}</CardDescription>
+                    <div className="text-center sm:text-left">
+                      <CardTitle className="text-white text-xs sm:text-sm">{crypto.symbol}</CardTitle>
+                      <CardDescription className="text-gray-400 text-xs hidden sm:block">{crypto.name}</CardDescription>
                     </div>
                   </div>
-                  <Coins className="h-5 w-5 text-gold-400" />
+                  <Coins className="h-4 w-4 sm:h-5 sm:w-5 text-gold-400" />
                 </div>
               </CardHeader>
               
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  <div className="text-xl font-bold text-white">
+              <CardContent className="pt-0 p-3 sm:p-4">
+                <div className="space-y-1 sm:space-y-2">
+                  <div className="text-sm sm:text-xl font-bold text-white">
                     ${crypto.price.toLocaleString()}
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2">
                     {crypto.change >= 0 ? (
-                      <TrendingUp className="h-4 w-4 text-green-400" />
+                      <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-400" />
                     ) : (
-                      <TrendingDown className="h-4 w-4 text-red-400" />
+                      <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-400" />
                     )}
                     <Badge 
                       className={`text-xs ${crypto.change >= 0 
