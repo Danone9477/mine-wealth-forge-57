@@ -41,6 +41,7 @@ interface UserData {
   affiliateStats?: AffiliateStats;
   referredBy?: string;
   canWithdraw?: boolean;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
