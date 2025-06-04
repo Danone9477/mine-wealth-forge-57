@@ -37,7 +37,7 @@ const Login = () => {
     
     try {
       console.log('Iniciando processo de login...');
-      await login(formData.emailOrUsername.trim(), formData.password);
+      await login(formData.emailOrUsername, formData.password);
       
       // Se chegou aqui, o login foi bem-sucedido - navegar para dashboard
       console.log('Login bem-sucedido, navegando para dashboard...');
@@ -45,7 +45,7 @@ const Login = () => {
     } catch (error) {
       console.error('Erro no login, mantendo na tela de login:', error);
       // Erro já é tratado pelo contexto com toast
-      // Manter na tela de login
+      // Manter na tela de login - não navegar
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ const Login = () => {
     setResetLoading(true);
     
     try {
-      await resetPassword(resetEmail.trim());
+      await resetPassword(resetEmail);
       setShowResetPassword(false);
       setResetEmail('');
     } catch (error) {
@@ -224,7 +224,7 @@ const Login = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all"
+                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all disabled:opacity-50"
                 disabled={loading || !formData.emailOrUsername.trim() || !formData.password.trim()}
               >
                 {loading ? (

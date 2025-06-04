@@ -49,15 +49,15 @@ const Register = () => {
     e.preventDefault();
     
     // Validações no frontend
-    if (!formData.username.trim()) {
+    if (!formData.username.trim() || formData.username.trim().length < 3) {
       return;
     }
     
-    if (!formData.email.trim()) {
+    if (!formData.email.trim() || !formData.email.includes('@')) {
       return;
     }
     
-    if (!formData.password.trim()) {
+    if (!formData.password.trim() || formData.password.length < 6) {
       return;
     }
     
@@ -65,14 +65,10 @@ const Register = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      return;
-    }
-
     setLoading(true);
     try {
       console.log('Iniciando processo de registro...');
-      await signup(formData.email.trim(), formData.password, formData.username.trim());
+      await signup(formData.email, formData.password, formData.username);
       
       // Se chegou aqui, o registro foi bem-sucedido
       console.log('Registro bem-sucedido, navegando para dashboard...');
@@ -80,7 +76,7 @@ const Register = () => {
     } catch (error) {
       console.error('Erro no registro, mantendo na tela de registro:', error);
       // Erro já tratado pelo contexto
-      // Manter na tela de registro
+      // Manter na tela de registro - não navegar
     } finally {
       setLoading(false);
     }
@@ -155,7 +151,7 @@ const Register = () => {
                     onChange={handleChange}
                     required
                     className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors pr-10"
-                    placeholder="Mínimo 3 caracteres"
+                    placeholder="Mínimo 3 caracteres (apenas letras e números)"
                     autoComplete="username"
                   />
                   {formData.username && (
@@ -272,7 +268,7 @@ const Register = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all"
+                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all disabled:opacity-50"
                 disabled={loading || !isFormValid()}
               >
                 {loading ? (
