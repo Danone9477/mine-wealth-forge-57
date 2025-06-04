@@ -70,57 +70,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to find email by username
   const findEmailByUsername = async (username: string): Promise<string | null> => {
     try {
+      console.log('Procurando email para username:', username);
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('username', '==', username));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
-        return userDoc.data().email;
+        const email = userDoc.data().email;
+        console.log('Email encontrado:', email);
+        return email;
       }
+      console.log('Username não encontrado');
       return null;
     } catch (error) {
-      console.error('Error finding user by username:', error);
+      console.error('Erro ao buscar username:', error);
       return null;
     }
   };
 
   const signup = async (email: string, password: string, username: string) => {
+    console.log('=== INICIANDO PROCESSO DE REGISTRO ===');
+    console.log('Email:', email);
+    console.log('Username:', username);
+    
     try {
-      console.log('Iniciando processo de registro...');
+      // Validações básicas
+      if (!email || !email.trim()) {
+        throw new Error('Email é obrigatório');
+      }
       
-      // Check if username already exists
-      const existingEmail = await findEmailByUsername(username);
-      if (existingEmail) {
-        toast({
-          title: "Nome de usuário já existe",
-          description: "Escolha outro nome de usuário",
-          variant: "destructive",
-        });
-        throw new Error('Username already exists');
+      if (!password || password.length < 6) {
+        throw new Error('Senha deve ter pelo menos 6 caracteres');
+      }
+      
+      if (!username || !username.trim()) {
+        throw new Error('Nome de usuário é obrigatório');
       }
 
-      // Verificar se há código de afiliado nos parâmetros da URL
+      // Verificar se username já existe
+      console.log('Verificando se username já existe...');
+      const existingEmail = await findEmailByUsername(username.trim());
+      if (existingEmail) {
+        throw new Error('Nome de usuário já está em uso');
+      }
+
+      // Verificar código de afiliado
       let referralCode: string | null = null;
       try {
         const urlParams = new URLSearchParams(window.location.search);
         referralCode = urlParams.get('ref');
-        console.log('Código de afiliado detectado:', referralCode);
+        if (referralCode) {
+          console.log('Código de afiliado detectado:', referralCode);
+        }
       } catch (error) {
-        console.log('Erro ao verificar código de afiliado, continuando sem referral:', error);
+        console.log('Erro ao verificar código de afiliado (não crítico):', error);
       }
 
       // Criar conta no Firebase Auth
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('Conta Firebase criada com sucesso');
+      console.log('Criando conta no Firebase Auth...');
+      const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      console.log('Conta Firebase criada com sucesso, UID:', result.user.uid);
       
       // Gerar código de afiliado único
-      const affiliateCode = `REF${username.toUpperCase()}${Date.now().toString().slice(-4)}`;
+      const affiliateCode = `REF${username.toUpperCase().substring(0, 4)}${Date.now().toString().slice(-4)}`;
+      console.log('Código de afiliado gerado:', affiliateCode);
       
+      // Criar dados do usuário
       const newUserData: UserData = {
         uid: result.user.uid,
-        username,
-        email,
+        username: username.trim(),
+        email: email.trim(),
         balance: 0,
         totalEarnings: 0,
         monthlyEarnings: 0,
@@ -129,6 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         affiliateCode,
         affiliateBalance: 0,
         referredBy: referralCode || undefined,
+        canWithdraw: false,
+        isAdmin: false,
         affiliateStats: {
           totalInvited: 0,
           activeReferralsCount: 0,
@@ -141,17 +163,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
       
-      // Salvar dados do usuário no Firestore
+      // Salvar dados no Firestore
+      console.log('Salvando dados do usuário no Firestore...');
       await setDoc(doc(db, 'users', result.user.uid), newUserData);
-      console.log('Dados do usuário salvos no Firestore');
+      console.log('Dados salvos com sucesso no Firestore');
       
       setUserData(newUserData);
 
-      // Processar código de afiliado DEPOIS de criar a conta com sucesso
+      // Processar referral se existir
       if (referralCode) {
         try {
-          console.log('Processando código de afiliado:', referralCode);
-          
+          console.log('Processando código de afiliado...');
           const affiliateQuery = query(
             collection(db, 'users'),
             where('affiliateCode', '==', referralCode)
@@ -162,7 +184,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!affiliateSnapshot.empty) {
             const affiliateDoc = affiliateSnapshot.docs[0];
             const affiliateData = affiliateDoc.data();
-            
             console.log('Afiliado encontrado:', affiliateData.username);
             
             const currentStats = affiliateData.affiliateStats || {};
@@ -176,26 +197,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               affiliateStats: updatedStats
             });
             
-            console.log(`Usuário ${username} registrado via afiliado ${referralCode}. Total convidados agora: ${updatedStats.totalInvited}`);
-          } else {
-            console.log('Afiliado não encontrado para código:', referralCode);
+            console.log('Estatísticas do afiliado atualizadas');
           }
         } catch (error) {
-          console.error('Erro ao processar código de afiliado (não crítico):', error);
-          // Não falhar o registro por causa do afiliado
+          console.log('Erro ao processar afiliado (não crítico):', error);
         }
       }
       
-      console.log('Registro completado com sucesso');
+      console.log('=== REGISTRO COMPLETADO COM SUCESSO ===');
       
       toast({
-        title: "Conta criada com sucesso!",
+        title: "Conta criada com sucesso! 🎉",
         description: referralCode ? 
-          `Bem-vindo ao Mine Wealth! Você foi referido por ${referralCode}` : 
+          `Bem-vindo ao Mine Wealth! Você foi convidado por ${referralCode}` : 
           "Bem-vindo ao Mine Wealth!",
       });
+      
     } catch (error: any) {
-      console.error('Erro no registro:', error);
+      console.error('=== ERRO NO REGISTRO ===', error);
+      
       let errorMessage = "Erro ao criar conta";
       
       if (error.code === 'auth/email-already-in-use') {
@@ -204,50 +224,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "Email inválido";
-      } else if (error.message === 'Username already exists') {
-        errorMessage = "Nome de usuário já existe";
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       toast({
-        title: "Erro ao criar conta",
+        title: "Erro ao criar conta ❌",
         description: errorMessage,
         variant: "destructive",
       });
-      throw error;
+      
+      throw new Error(errorMessage);
     }
   };
 
   const login = async (emailOrUsername: string, password: string) => {
+    console.log('=== INICIANDO PROCESSO DE LOGIN ===');
+    console.log('Email/Username:', emailOrUsername);
+    
     try {
-      console.log('Iniciando processo de login...');
-      let email = emailOrUsername;
+      // Validações básicas
+      if (!emailOrUsername || !emailOrUsername.trim()) {
+        throw new Error('Email ou nome de usuário é obrigatório');
+      }
       
-      // Check if it's a username (no @ symbol)
-      if (!emailOrUsername.includes('@')) {
-        console.log('Buscando email pelo username:', emailOrUsername);
-        const foundEmail = await findEmailByUsername(emailOrUsername);
+      if (!password || !password.trim()) {
+        throw new Error('Senha é obrigatória');
+      }
+
+      let email = emailOrUsername.trim();
+      
+      // Se não contém @, é um username
+      if (!email.includes('@')) {
+        console.log('Detectado username, buscando email...');
+        const foundEmail = await findEmailByUsername(email);
         if (!foundEmail) {
-          toast({
-            title: "Usuário não encontrado",
-            description: "Nome de usuário não existe",
-            variant: "destructive",
-          });
-          throw new Error('User not found');
+          throw new Error('Nome de usuário não encontrado');
         }
         email = foundEmail;
+        console.log('Email encontrado para username:', email);
       }
       
       console.log('Tentando fazer login com email:', email);
       await signInWithEmailAndPassword(auth, email, password);
       
-      console.log('Login realizado com sucesso');
+      console.log('=== LOGIN REALIZADO COM SUCESSO ===');
       toast({
-        title: "Login realizado com sucesso!",
+        title: "Login realizado com sucesso! ✅",
         description: "Bem-vindo de volta!",
       });
+      
     } catch (error: any) {
-      console.error('Erro no login:', error);
-      let errorMessage = "Email/username ou senha incorretos";
+      console.error('=== ERRO NO LOGIN ===', error);
+      
+      let errorMessage = "Email/usuário ou senha incorretos";
       
       if (error.code === 'auth/user-not-found') {
         errorMessage = "Usuário não encontrado";
@@ -256,19 +286,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "Email inválido";
       } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Muitas tentativas. Tente novamente mais tarde";
+        errorMessage = "Muitas tentativas. Tente novamente em alguns minutos";
       } else if (error.code === 'auth/invalid-credential') {
-        errorMessage = "Credenciais inválidas. Verifique email/username e senha";
-      } else if (error.message === 'User not found') {
-        errorMessage = "Nome de usuário não encontrado";
+        errorMessage = "Credenciais inválidas. Verifique email/usuário e senha";
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       toast({
-        title: "Erro no login",
+        title: "Erro no login ❌",
         description: errorMessage,
         variant: "destructive",
       });
-      throw error;
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -277,13 +308,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       setUserData(null);
       toast({
-        title: "Logout realizado",
+        title: "Logout realizado ✅",
         description: "Até logo!",
       });
     } catch (error: any) {
+      console.error('Erro no logout:', error);
       toast({
-        title: "Erro no logout",
-        description: error.message,
+        title: "Erro no logout ❌",
+        description: "Tente novamente",
         variant: "destructive",
       });
     }
@@ -291,24 +323,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string) => {
     try {
-      await sendPasswordResetEmail(auth, email);
+      if (!email || !email.trim()) {
+        throw new Error('Email é obrigatório');
+      }
+      
+      await sendPasswordResetEmail(auth, email.trim());
       toast({
-        title: "Email de recuperação enviado!",
+        title: "Email enviado! 📧",
         description: "Verifique sua caixa de entrada para redefinir sua senha",
       });
     } catch (error: any) {
-      let errorMessage = "Verifique se o email está correto";
+      console.error('Erro no reset de senha:', error);
+      
+      let errorMessage = "Erro ao enviar email de recuperação";
       
       if (error.code === 'auth/user-not-found') {
         errorMessage = "Email não encontrado";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email inválido";
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       toast({
-        title: "Erro no envio",
+        title: "Erro no envio ❌",
         description: errorMessage,
         variant: "destructive",
       });
-      throw error;
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -320,26 +363,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(doc(db, 'users', user.uid), updatedData);
       setUserData(updatedData);
     } catch (error: any) {
-      console.error('Update user data error:', error);
+      console.error('Erro ao atualizar dados:', error);
       toast({
-        title: "Erro ao atualizar dados",
-        description: error.message,
+        title: "Erro ao atualizar dados ❌",
+        description: "Tente novamente",
         variant: "destructive",
       });
     }
   };
 
   useEffect(() => {
+    console.log('Configurando listener de autenticação...');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Estado de autenticação mudou:', user ? 'Logado' : 'Deslogado');
       setUser(user);
+      
       if (user) {
         try {
+          console.log('Carregando dados do usuário...');
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
-            setUserData(userDoc.data() as UserData);
+            const data = userDoc.data() as UserData;
+            console.log('Dados do usuário carregados:', data.username);
+            setUserData(data);
+          } else {
+            console.log('Documento do usuário não encontrado');
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error('Erro ao carregar dados do usuário:', error);
         }
       } else {
         setUserData(null);

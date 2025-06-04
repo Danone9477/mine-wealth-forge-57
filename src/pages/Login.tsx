@@ -24,7 +24,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validações básicas
+    // Validações básicas no frontend
     if (!formData.emailOrUsername.trim()) {
       return;
     }
@@ -36,16 +36,16 @@ const Login = () => {
     setLoading(true);
     
     try {
-      console.log('Tentando fazer login...');
+      console.log('Iniciando processo de login...');
       await login(formData.emailOrUsername.trim(), formData.password);
       
-      // Se chegou aqui, o login foi bem-sucedido
+      // Se chegou aqui, o login foi bem-sucedido - navegar para dashboard
       console.log('Login bem-sucedido, navegando para dashboard...');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Erro no login:', error);
-      // O toast de erro já é mostrado pelo contexto de auth
-      // Não navegar em caso de erro - ficar na tela de login
+      console.error('Erro no login, mantendo na tela de login:', error);
+      // Erro já é tratado pelo contexto com toast
+      // Manter na tela de login
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,8 @@ const Login = () => {
       setShowResetPassword(false);
       setResetEmail('');
     } catch (error) {
-      console.error('Reset password error:', error);
+      console.error('Erro no reset de senha:', error);
+      // Erro já tratado pelo contexto
     } finally {
       setResetLoading(false);
     }
@@ -94,7 +95,7 @@ const Login = () => {
             </p>
           </div>
 
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-gray-800 border-gray-700 shadow-xl">
             <CardHeader className="text-center">
               <CardTitle className="text-white">Redefinir Senha</CardTitle>
               <CardDescription className="text-gray-400">
@@ -112,24 +113,31 @@ const Login = () => {
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
                     required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
-                    placeholder="Seu email de cadastro"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors"
+                    placeholder="seu@email.com"
                   />
                 </div>
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
+                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all"
                   disabled={resetLoading || !resetEmail.trim()}
                 >
-                  {resetLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                  {resetLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                      Enviando...
+                    </div>
+                  ) : (
+                    'Enviar Link de Recuperação'
+                  )}
                 </Button>
 
                 <Button 
                   type="button"
                   variant="outline"
                   onClick={() => setShowResetPassword(false)}
-                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
                 >
                   Voltar ao Login
                 </Button>
@@ -156,7 +164,7 @@ const Login = () => {
           </p>
         </div>
 
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-800 border-gray-700 shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-white">Fazer Login</CardTitle>
             <CardDescription className="text-gray-400">
@@ -174,8 +182,9 @@ const Login = () => {
                   value={formData.emailOrUsername}
                   onChange={handleChange}
                   required
-                  className="bg-gray-700 border-gray-600 text-white focus:border-gold-400"
+                  className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors"
                   placeholder="Email ou nome de usuário"
+                  autoComplete="username"
                 />
               </div>
 
@@ -189,13 +198,14 @@ const Login = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10"
+                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10 transition-colors"
                     placeholder="Sua senha"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -206,7 +216,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowResetPassword(true)}
-                  className="text-sm text-gold-400 hover:text-gold-300"
+                  className="text-sm text-gold-400 hover:text-gold-300 transition-colors"
                 >
                   Esqueceu a senha?
                 </button>
@@ -214,17 +224,24 @@ const Login = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
+                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all"
                 disabled={loading || !formData.emailOrUsername.trim() || !formData.password.trim()}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                    Entrando...
+                  </div>
+                ) : (
+                  'Entrar'
+                )}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-gray-400">
                 Não tem uma conta?{' '}
-                <Link to="/register" className="text-gold-400 hover:text-gold-300 font-medium">
+                <Link to="/register" className="text-gold-400 hover:text-gold-300 font-medium transition-colors">
                   Registrar-se
                 </Link>
               </p>
