@@ -40,7 +40,7 @@ interface UserData {
   affiliateCode?: string;
   affiliateBalance?: number;
   affiliateStats?: AffiliateStats;
-  referredBy?: string;
+  referredBy?: string | null;
   canWithdraw?: boolean;
   isAdmin?: boolean;
 }
@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const affiliateCode = `REF${cleanUsername.toUpperCase().substring(0, 4)}${Date.now().toString().slice(-4)}`;
       console.log('Código de afiliado gerado:', affiliateCode);
       
-      // Criar dados do usuário
+      // Criar dados do usuário - CORRIGINDO PROBLEMA DE UNDEFINED
       const newUserData: UserData = {
         uid: result.user.uid,
         username: cleanUsername,
@@ -164,7 +164,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         transactions: [],
         affiliateCode,
         affiliateBalance: 0,
-        referredBy: referralCode || undefined,
+        // Só incluir o referredBy se o código existir e for válido
+        ...(referralCode ? { referredBy: referralCode } : {}),
         canWithdraw: false,
         isAdmin: false,
         affiliateStats: {
@@ -217,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (error) {
           console.log('Erro ao processar afiliado (não crítico):', error);
+          // Não interrompe o fluxo se houver erro no processamento do afiliado
         }
       }
       

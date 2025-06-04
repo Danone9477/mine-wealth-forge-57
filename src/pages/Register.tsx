@@ -8,20 +8,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { trackAffiliateClick } from '@/services/paymentService';
 import { Coins, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { toast } from '@/hooks/use-toast';
+
+// Define schema para validação com Zod
+const registerFormSchema = z.object({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres")
+    .regex(/^[a-zA-Z0-9]+$/, "Apenas letras e números são permitidos"),
+  email: z.string().email("Digite um email válido"),
+  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"]
+});
+
+type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  // Configurar o hook de formulário com validação
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerFormSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: ''
+    },
+  });
 
   useEffect(() => {
     // Verificar se há código de afiliado na URL
@@ -45,62 +69,29 @@ const Register = () => {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validações no frontend
-    if (!formData.username.trim() || formData.username.trim().length < 3) {
-      return;
-    }
-    
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      return;
-    }
-    
-    if (!formData.password.trim() || formData.password.length < 6) {
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      return;
-    }
-
+  const onSubmit = async (values: RegisterFormValues) => {
     setLoading(true);
     try {
       console.log('Iniciando processo de registro...');
-      await signup(formData.email, formData.password, formData.username);
+      await signup(values.email, values.password, values.username);
       
       // Se chegou aqui, o registro foi bem-sucedido
       console.log('Registro bem-sucedido, navegando para dashboard...');
+      toast({
+        title: "Conta criada com sucesso! 🎉",
+        description: "Você será redirecionado para o dashboard."
+      });
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no registro, mantendo na tela de registro:', error);
-      // Erro já tratado pelo contexto
-      // Manter na tela de registro - não navegar
+      // Erro já tratado pelo contexto, não precisa fazer nada aqui
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const isFormValid = () => {
-    return (
-      formData.username.trim().length >= 3 &&
-      formData.email.trim().includes('@') &&
-      formData.password.trim().length >= 6 &&
-      formData.confirmPassword.trim() &&
-      formData.password === formData.confirmPassword
-    );
-  };
-
-  const getPasswordStrength = () => {
-    const password = formData.password;
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { strength: 'weak', color: 'text-red-400' };
     if (password.length < 6) return { strength: 'weak', color: 'text-red-400' };
     if (password.length < 8) return { strength: 'medium', color: 'text-yellow-400' };
     return { strength: 'strong', color: 'text-green-400' };
@@ -139,148 +130,159 @@ const Register = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username" className="text-gray-300">Nome de Usuário</Label>
-                <div className="relative">
-                  <Input
-                    id="username"
-                    name="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors pr-10"
-                    placeholder="Mínimo 3 caracteres (apenas letras e números)"
-                    autoComplete="username"
-                  />
-                  {formData.username && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      {formData.username.trim().length >= 3 ? (
-                        <CheckCircle className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-400" />
-                      )}
-                    </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-gray-300">Nome de Usuário</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors pr-10"
+                            placeholder="Mínimo 3 caracteres (apenas letras e números)"
+                            autoComplete="username"
+                          />
+                          {field.value && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              {field.value.trim().length >= 3 ? (
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-400" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-400 text-sm" />
+                    </FormItem>
                   )}
-                </div>
-                {formData.username && formData.username.trim().length < 3 && (
-                  <p className="text-red-400 text-sm">Nome de usuário deve ter pelo menos 3 caracteres</p>
-                )}
-              </div>
+                />
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-300">Email</Label>
-                <div className="relative">
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors pr-10"
-                    placeholder="seu@email.com"
-                    autoComplete="email"
-                  />
-                  {formData.email && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      {formData.email.trim().includes('@') ? (
-                        <CheckCircle className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-400" />
-                      )}
-                    </div>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-gray-300">Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type="email"
+                            className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 transition-colors pr-10"
+                            placeholder="seu@email.com"
+                            autoComplete="email"
+                          />
+                          {field.value && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              {field.value.trim().includes('@') ? (
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-400" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-400 text-sm" />
+                    </FormItem>
                   )}
-                </div>
-                {formData.email && !formData.email.trim().includes('@') && (
-                  <p className="text-red-400 text-sm">Digite um email válido</p>
-                )}
-              </div>
+                />
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-300">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10 transition-colors"
-                    placeholder="Mínimo 6 caracteres"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {formData.password && (
-                  <div className="flex items-center gap-2">
-                    <div className={`text-sm ${getPasswordStrength().color}`}>
-                      Força: {getPasswordStrength().strength === 'weak' ? 'Fraca' : 
-                              getPasswordStrength().strength === 'medium' ? 'Média' : 'Forte'}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-gray-300">Senha</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showPassword ? 'text' : 'password'}
+                            className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10 transition-colors"
+                            placeholder="Mínimo 6 caracteres"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      {field.value && (
+                        <div className="flex items-center gap-2">
+                          <div className={`text-sm ${getPasswordStrength(field.value).color}`}>
+                            Força: {getPasswordStrength(field.value).strength === 'weak' ? 'Fraca' : 
+                                    getPasswordStrength(field.value).strength === 'medium' ? 'Média' : 'Forte'}
+                          </div>
+                        </div>
+                      )}
+                      <FormMessage className="text-red-400 text-sm" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-gray-300">Confirmar Senha</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10 transition-colors"
+                            placeholder="Confirme sua senha"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-400 text-sm" />
+                      {form.getValues("confirmPassword") && 
+                       form.getValues("password") === form.getValues("confirmPassword") && 
+                       form.getValues("password") && (
+                        <p className="text-green-400 text-sm flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          Senhas coincidem
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all disabled:opacity-50"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                      Criando conta...
                     </div>
-                  </div>
-                )}
-                {formData.password && formData.password.length < 6 && (
-                  <p className="text-red-400 text-sm">A senha deve ter pelo menos 6 caracteres</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-gray-300">Confirmar Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    className="bg-gray-700 border-gray-600 text-white focus:border-gold-400 pr-10 transition-colors"
-                    placeholder="Confirme sua senha"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <p className="text-red-400 text-sm">As senhas não coincidem</p>
-                )}
-                {formData.confirmPassword && formData.password === formData.confirmPassword && formData.password && (
-                  <p className="text-green-400 text-sm flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    Senhas coincidem
-                  </p>
-                )}
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold transition-all disabled:opacity-50"
-                disabled={loading || !isFormValid()}
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-                    Criando conta...
-                  </div>
-                ) : (
-                  'Criar Conta'
-                )}
-              </Button>
-            </form>
+                  ) : (
+                    'Criar Conta'
+                  )}
+                </Button>
+              </form>
+            </Form>
 
             <div className="mt-6 text-center">
               <p className="text-gray-400">
