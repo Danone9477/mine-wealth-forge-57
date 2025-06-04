@@ -23,16 +23,29 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validações básicas
+    if (!formData.emailOrUsername.trim()) {
+      return;
+    }
+    
+    if (!formData.password.trim()) {
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      await login(formData.emailOrUsername, formData.password);
-      // Só navega se o login for bem-sucedido
+      console.log('Tentando fazer login...');
+      await login(formData.emailOrUsername.trim(), formData.password);
+      
+      // Se chegou aqui, o login foi bem-sucedido
+      console.log('Login bem-sucedido, navegando para dashboard...');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
-      // Mantém na tela de login quando há erro
+      console.error('Erro no login:', error);
       // O toast de erro já é mostrado pelo contexto de auth
+      // Não navegar em caso de erro - ficar na tela de login
     } finally {
       setLoading(false);
     }
@@ -40,10 +53,15 @@ const Login = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!resetEmail.trim()) {
+      return;
+    }
+    
     setResetLoading(true);
     
     try {
-      await resetPassword(resetEmail);
+      await resetPassword(resetEmail.trim());
       setShowResetPassword(false);
       setResetEmail('');
     } catch (error) {
@@ -102,7 +120,7 @@ const Login = () => {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
-                  disabled={resetLoading}
+                  disabled={resetLoading || !resetEmail.trim()}
                 >
                   {resetLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
                 </Button>
@@ -197,7 +215,7 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
-                disabled={loading}
+                disabled={loading || !formData.emailOrUsername.trim() || !formData.password.trim()}
               >
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>

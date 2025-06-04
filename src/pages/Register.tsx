@@ -25,37 +25,62 @@ const Register = () => {
 
   useEffect(() => {
     // Verificar se há código de afiliado na URL e rastrear clique
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-    
-    if (refCode) {
-      setReferralCode(refCode);
-      console.log('Código de afiliado detectado:', refCode);
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref');
       
-      // Rastrear clique no link de afiliado
-      trackAffiliateClick(refCode);
+      if (refCode) {
+        setReferralCode(refCode);
+        console.log('Código de afiliado detectado:', refCode);
+        
+        // Rastrear clique no link de afiliado
+        try {
+          trackAffiliateClick(refCode);
+        } catch (error) {
+          console.log('Erro ao rastrear clique de afiliado (não crítico):', error);
+        }
+      }
+    } catch (error) {
+      console.log('Erro ao verificar código de afiliado:', error);
     }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validações básicas
+    if (!formData.username.trim()) {
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      return;
+    }
+    
+    if (!formData.password.trim()) {
+      return;
+    }
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('As senhas não coincidem');
       return;
     }
 
     if (formData.password.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres');
       return;
     }
 
     setLoading(true);
     try {
-      await signup(formData.email, formData.password, formData.username);
+      console.log('Iniciando processo de registro...');
+      await signup(formData.email.trim(), formData.password, formData.username.trim());
+      
+      // Se chegou aqui, o registro foi bem-sucedido
+      console.log('Registro bem-sucedido, navegando para dashboard...');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Erro no registro:', error);
+      // O toast de erro já é mostrado pelo contexto de auth
+      // Não navegar em caso de erro - ficar na tela de registro
     } finally {
       setLoading(false);
     }
@@ -66,6 +91,17 @@ const Register = () => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.username.trim() &&
+      formData.email.trim() &&
+      formData.password.trim() &&
+      formData.confirmPassword.trim() &&
+      formData.password === formData.confirmPassword &&
+      formData.password.length >= 6
+    );
   };
 
   return (
@@ -151,6 +187,9 @@ const Register = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {formData.password && formData.password.length < 6 && (
+                  <p className="text-red-400 text-sm">A senha deve ter pelo menos 6 caracteres</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -174,12 +213,15 @@ const Register = () => {
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                  <p className="text-red-400 text-sm">As senhas não coincidem</p>
+                )}
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-gold text-gray-900 hover:bg-gold-500 font-semibold"
-                disabled={loading}
+                disabled={loading || !isFormValid()}
               >
                 {loading ? 'Criando conta...' : 'Criar Conta'}
               </Button>
