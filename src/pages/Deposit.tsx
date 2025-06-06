@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,28 +6,47 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { Smartphone, Wallet, CheckCircle, Clock, AlertCircle, Loader2, MessageCircle, Send, Mail, Phone, Users, TrendingUp } from 'lucide-react';
+import { Smartphone, Wallet, CheckCircle, Clock, AlertCircle, Loader2, MessageCircle, Send, Mail, Phone, Users, TrendingUp, Star } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { processPayment, processAffiliateCommission } from '@/services/paymentService';
 
 const Deposit = () => {
   const { userData, updateUserData } = useAuth();
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('manual'); // Default to manual (recommended)
   const [phoneNumber, setPhoneNumber] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showManualDeposit, setShowManualDeposit] = useState(false);
   const [depositNotes, setDepositNotes] = useState('');
   const SUPPORT_WHATSAPP = "853816787";
 
   const paymentMethods = [
-    { id: 'mpesa', name: 'M-Pesa', icon: Smartphone, color: 'from-green-500 to-green-600' },
-    { id: 'emola', name: 'e-Mola', icon: Wallet, color: 'from-blue-500 to-blue-600' },
-    { id: 'manual', name: 'Depósito Manual (Suporte)', icon: MessageCircle, color: 'from-purple-500 to-purple-600' },
+    { 
+      id: 'manual', 
+      name: 'Depósito via Suporte', 
+      icon: MessageCircle, 
+      color: 'from-purple-500 to-purple-600',
+      recommended: true,
+      description: 'Atendimento personalizado e seguro'
+    },
+    { 
+      id: 'mpesa', 
+      name: 'M-Pesa', 
+      icon: Smartphone, 
+      color: 'from-green-500 to-green-600',
+      recommended: false,
+      description: 'Em breve - Transferência automática'
+    },
+    { 
+      id: 'emola', 
+      name: 'e-Mola', 
+      icon: Wallet, 
+      color: 'from-blue-500 to-blue-600',
+      recommended: false,
+      description: 'Em breve - Transferência automática'
+    },
   ];
 
   const handleManualDeposit = () => {
@@ -85,7 +105,7 @@ _Solicitação enviada via Mine Wealth Platform_`;
       amount: depositAmount,
       status: 'pending' as const,
       date: new Date().toISOString(),
-      description: `Solicitação de depósito manual - ${userEmail}`,
+      description: `Solicitação de depósito via suporte - ${userEmail}`,
       paymentMethod: paymentMethod,
       phoneNumber,
       userEmail,
@@ -110,147 +130,6 @@ _Solicitação enviada via Mine Wealth Platform_`;
     setUserEmail('');
     setPhoneNumber('');
     setDepositNotes('');
-    setPaymentMethod('');
-    setShowManualDeposit(false);
-  };
-
-  const handleDeposit = async () => {
-    if (!userData) {
-      toast({
-        title: "Erro de autenticação",
-        description: "Por favor, faça login novamente",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!amount || !paymentMethod || !phoneNumber) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const depositAmount = parseFloat(amount);
-    if (depositAmount < 100) {
-      toast({
-        title: "Valor mínimo",
-        description: "O valor mínimo de depósito é 100 MT",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    // Mostrar toast de processamento
-    toast({
-      title: "Processando pagamento...",
-      description: `Conectando com ${paymentMethods.find(m => m.id === paymentMethod)?.name}`,
-    });
-
-    try {
-      console.log('Iniciando depósito:', {
-        method: paymentMethod,
-        phone: phoneNumber,
-        amount: depositAmount,
-        username: userData.username
-      });
-
-      const paymentResult = await processPayment(
-        paymentMethod as 'emola' | 'mpesa',
-        phoneNumber,
-        depositAmount,
-        userData.username
-      );
-
-      console.log('Resultado completo do pagamento:', paymentResult);
-
-      // Criar transação no histórico
-      const transaction = {
-        id: Date.now().toString(),
-        type: 'deposit' as const,
-        amount: depositAmount,
-        status: paymentResult.success ? 'success' as const : 'failed' as const,
-        date: new Date().toISOString(),
-        description: `Depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
-        paymentMethod,
-        phoneNumber,
-        transactionId: paymentResult.transactionId
-      };
-
-      if (paymentResult.success) {
-        // Processar comissão de afiliado se aplicável
-        if (userData.referredBy) {
-          console.log('Processando comissão para:', userData.referredBy);
-          await processAffiliateCommission(depositAmount, userData.uid, userData);
-        }
-
-        const newBalance = userData.balance + depositAmount;
-        console.log('Atualizando saldo:', { oldBalance: userData.balance, newBalance, depositAmount });
-
-        await updateUserData({
-          balance: newBalance,
-          transactions: [...(userData.transactions || []), transaction]
-        });
-
-        toast({
-          title: "Depósito realizado com sucesso! 🎉",
-          description: `${depositAmount} MT foram adicionados à sua conta. Novo saldo: ${newBalance.toFixed(2)} MT`,
-        });
-
-        // Limpar formulário
-        setAmount('');
-        setPhoneNumber('');
-        setPaymentMethod('');
-      } else {
-        // Adicionar transação falhada ao histórico
-        await updateUserData({
-          transactions: [...(userData.transactions || []), transaction]
-        });
-
-        toast({
-          title: "Depósito não aprovado",
-          description: paymentResult.message,
-          variant: "destructive",
-        });
-        
-        // Log detalhado para debug
-        console.error('Pagamento falhou:', {
-          message: paymentResult.message,
-          rawResponse: paymentResult.rawResponse
-        });
-      }
-
-    } catch (error) {
-      console.error('Erro crítico no processamento do depósito:', error);
-      
-      // Adicionar transação de erro ao histórico
-      const errorTransaction = {
-        id: Date.now().toString(),
-        type: 'deposit' as const,
-        amount: depositAmount,
-        status: 'failed' as const,
-        date: new Date().toISOString(),
-        description: `Erro no depósito via ${paymentMethods.find(m => m.id === paymentMethod)?.name} - ${phoneNumber}`,
-        paymentMethod,
-        phoneNumber
-      };
-
-      await updateUserData({
-        transactions: [...(userData.transactions || []), errorTransaction]
-      });
-
-      toast({
-        title: "Erro no sistema",
-        description: "Erro interno no processamento. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   if (!userData) {
@@ -331,7 +210,7 @@ _Solicitação enviada via Mine Wealth Platform_`;
                 Fazer Depósito
               </CardTitle>
               <CardDescription className="text-gray-300">
-                Escolha entre depósito automático ou manual com suporte personalizado
+                Depósito via suporte - Atendimento personalizado e seguro
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -363,7 +242,12 @@ _Solicitação enviada via Mine Wealth Platform_`;
                           <div className="flex items-center gap-2">
                             <IconComponent className="h-4 w-4" />
                             {method.name}
-                            {method.id === 'manual' && <Badge className="bg-purple-600 text-white text-xs">Recomendado</Badge>}
+                            {method.recommended && (
+                              <div className="flex items-center gap-1">
+                                <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                                <Badge className="bg-purple-600 text-white text-xs">Recomendado</Badge>
+                              </div>
+                            )}
                           </div>
                         </SelectItem>
                       );
@@ -424,7 +308,7 @@ _Solicitação enviada via Mine Wealth Platform_`;
               ) : (
                 <Button
                   disabled={true}
-                  className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 font-semibold h-12 text-base sm:text-lg opacity-50"
+                  className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold h-12 text-base sm:text-lg opacity-50"
                 >
                   Depósito Automático (Em Breve)
                 </Button>
@@ -462,18 +346,21 @@ _Solicitação enviada via Mine Wealth Platform_`;
                 {paymentMethods.map((method) => {
                   const IconComponent = method.icon;
                   return (
-                    <div key={method.id} className="flex items-center gap-4 p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700/70 transition-colors">
+                    <div key={method.id} className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
+                      method.recommended ? 'bg-purple-900/50 border border-purple-500/50' : 'bg-gray-700/50'
+                    } hover:bg-gray-700/70`}>
                       <div className={`p-3 rounded-full bg-gradient-to-r ${method.color}`}>
                         <IconComponent className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-white font-semibold">{method.name}</h4>
-                        <p className="text-gray-400 text-sm">
-                          {method.id === 'manual' ? 'Suporte personalizado via WhatsApp' : 'Transferência automática'}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-white font-semibold">{method.name}</h4>
+                          {method.recommended && <Star className="h-4 w-4 text-yellow-400 fill-current" />}
+                        </div>
+                        <p className="text-gray-400 text-sm">{method.description}</p>
                       </div>
-                      <Badge className={method.id === 'manual' ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'}>
-                        {method.id === 'manual' ? 'Disponível' : 'Em Breve'}
+                      <Badge className={method.recommended ? 'bg-purple-600 text-white' : 'bg-gray-600 text-white'}>
+                        {method.recommended ? 'Recomendado' : 'Em Breve'}
                       </Badge>
                     </div>
                   );
@@ -481,43 +368,43 @@ _Solicitação enviada via Mine Wealth Platform_`;
               </CardContent>
             </Card>
 
-            {/* Why Invest Section */}
-            <Card className="bg-gradient-to-br from-green-900/30 to-green-800/30 border-green-700/50 backdrop-blur-sm">
+            {/* Why Choose Support Deposit */}
+            <Card className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 border-purple-700/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <TrendingUp className="h-6 w-6 text-green-400" />
-                  Por Que Investir Hoje?
+                  <MessageCircle className="h-6 w-6 text-purple-400" />
+                  Por Que Escolher Depósito via Suporte?
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">💎</div>
-                  <span className="text-gray-300 text-sm">Retornos consistentes e crescentes</span>
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">🛡️</div>
+                  <span className="text-gray-300 text-sm">Máxima segurança com verificação manual</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">🛡️</div>
-                  <span className="text-gray-300 text-sm">Plataforma 100% segura e regulamentada</span>
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">⚡</div>
+                  <span className="text-gray-300 text-sm">Processamento rápido via WhatsApp</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">🚀</div>
-                  <span className="text-gray-300 text-sm">Tecnologia de mineração avançada</span>
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">👥</div>
+                  <span className="text-gray-300 text-sm">Suporte especializado 24/7</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">👥</div>
-                  <span className="text-gray-300 text-sm">Suporte 24/7 especializado</span>
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">✅</div>
+                  <span className="text-gray-300 text-sm">Confirmação imediata do depósito</span>
                 </div>
               </CardContent>
             </Card>
 
             {/* Support Contact Enhanced */}
-            <Card className="bg-gradient-to-r from-blue-900/30 to-blue-800/30 border-blue-700/50 backdrop-blur-sm">
+            <Card className="bg-gradient-to-r from-green-900/30 to-green-800/30 border-green-700/50 backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  <MessageCircle className="h-8 w-8 text-blue-400 flex-shrink-0" />
+                  <MessageCircle className="h-8 w-8 text-green-400 flex-shrink-0" />
                   <div>
-                    <h3 className="text-blue-400 font-semibold mb-2">Suporte Especializado</h3>
+                    <h3 className="text-green-400 font-semibold mb-2">Suporte Especializado</h3>
                     <p className="text-gray-300 text-sm mb-3">
-                      Nossa equipe está pronta para ajudar você a maximizar seus investimentos
+                      Nossa equipe está pronta para processar seu depósito de forma segura e rápida
                     </p>
                     <Button 
                       onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}`, '_blank')}
