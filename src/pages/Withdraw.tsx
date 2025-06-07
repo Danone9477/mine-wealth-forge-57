@@ -77,10 +77,13 @@ const Withdraw = () => {
         phoneNumber,
         method: paymentMethods.find(m => m.id === paymentMethod)?.name || paymentMethod,
         phone: phoneNumber,
-        pixKey: phoneNumber
+        pixKey: phoneNumber,
+        username: userData.username,
+        email: userData.email,
+        source: 'user'
       };
 
-      // Debitar o valor do saldo
+      // Debitar o valor do saldo (o saque fica pendente mas é contabilizado imediatamente)
       const newBalance = userData.balance - withdrawAmount;
 
       await updateUserData({
@@ -121,6 +124,11 @@ const Withdraw = () => {
     );
   }
 
+  // Calcular saques pendentes
+  const pendingWithdraws = (userData.transactions || [])
+    .filter(t => (t.type === 'withdraw' || t.type === 'withdrawal') && (t.status === 'pending' || t.status === 'pendente'))
+    .reduce((sum, t) => sum + t.amount, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
       {/* Hero Section */}
@@ -138,8 +146,8 @@ const Withdraw = () => {
             </p>
           </div>
 
-          {/* Current Balance */}
-          <div className="max-w-md mx-auto mb-8">
+          {/* Current Balance with Pending Withdrawals */}
+          <div className="max-w-2xl mx-auto mb-8 space-y-4">
             <Card className="bg-gradient-to-r from-gold-500/20 to-gold-600/20 border-gold-500/30 backdrop-blur-sm">
               <CardContent className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3 mb-2">
@@ -151,6 +159,21 @@ const Withdraw = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {pendingWithdraws > 0 && (
+              <Card className="bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-orange-500/30 backdrop-blur-sm">
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <Clock className="h-6 w-6 text-orange-400" />
+                    <div>
+                      <p className="text-orange-200 font-medium text-sm">Saques Pendentes</p>
+                      <p className="text-xl font-bold text-white">{pendingWithdraws.toFixed(2)} MT</p>
+                      <p className="text-orange-300 text-xs">Aguardando processamento</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

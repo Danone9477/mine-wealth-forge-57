@@ -55,10 +55,10 @@ const Deposit = () => {
     }
 
     const depositAmount = parseFloat(amount);
-    if (depositAmount < 100) {
+    if (depositAmount < 200) {
       toast({
         title: "Valor mínimo",
-        description: "O valor mínimo de depósito é 100 MT",
+        description: "O valor mínimo de depósito é 200 MT",
         variant: "destructive",
       });
       return;
@@ -187,7 +187,7 @@ Mine Wealth - Sistema de Mineração`;
                     <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">3</div>
                     <div>
                       <p className="text-white font-semibold">Envie o dinheiro</p>
-                      <p className="text-gray-300 text-sm">Transfira via app do seu banco</p>
+                      <p className="text-gray-300 text-sm">Transfira via app do seu banco ou USSD</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -309,11 +309,11 @@ Mine Wealth - Sistema de Mineração`;
                   <Input
                     id="amount"
                     type="number"
-                    placeholder="Quanto enviou? (mínimo: 100 MT)"
+                    placeholder="Quanto enviou? (mínimo: 200 MT)"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                    min="100"
+                    min="200"
                   />
                   <p className="text-sm text-gray-400">Valor exato que transferiu</p>
                 </div>
@@ -381,7 +381,7 @@ Mine Wealth - Sistema de Mineração`;
                   <h3 className="text-yellow-400 font-semibold mb-2">Tempo de Processamento</h3>
                   <ul className="text-gray-300 space-y-1 text-sm">
                     <li>• Verificação: até 2 horas</li>
-                    <li>• Valor mínimo: 100 MT</li>
+                    <li>• Valor mínimo: 200 MT</li>
                     <li>• ID de transação obrigatório</li>
                   </ul>
                 </div>

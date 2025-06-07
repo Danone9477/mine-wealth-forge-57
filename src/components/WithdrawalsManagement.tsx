@@ -21,7 +21,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
   const [sourceFilter, setSourceFilter] = useState('all');
 
   // Filtrar apenas transações de saque
-  const withdrawalTransactions = transactions.filter(t => t.type === 'withdrawal');
+  const withdrawalTransactions = transactions.filter(t => t.type === 'withdrawal' || t.type === 'withdraw');
 
   console.log('🔍 Total de saques encontrados:', withdrawalTransactions.length);
 
@@ -77,7 +77,13 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
     rejected: withdrawalTransactions.filter(t => 
       t.status === 'rejected' || t.status === 'rejeitado'
     ).length,
-    total: withdrawalTransactions.length
+    total: withdrawalTransactions.length,
+    pendingAmount: withdrawalTransactions.filter(t => 
+      t.status === 'pending' || t.status === 'pendente'
+    ).reduce((sum, t) => sum + t.amount, 0),
+    completedAmount: withdrawalTransactions.filter(t => 
+      t.status === 'completed' || t.status === 'pago'
+    ).reduce((sum, t) => sum + t.amount, 0)
   };
 
   return (
@@ -90,6 +96,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
               <AlertCircle className="h-5 w-5 text-yellow-400 mx-auto mb-1" />
               <p className="text-yellow-400 text-xs">Pendentes</p>
               <p className="text-lg font-bold text-white">{stats.pending}</p>
+              <p className="text-xs text-yellow-300">{stats.pendingAmount.toFixed(0)} MT</p>
             </div>
           </CardContent>
         </Card>
@@ -100,6 +107,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
               <CreditCard className="h-5 w-5 text-green-400 mx-auto mb-1" />
               <p className="text-green-400 text-xs">Pagos</p>
               <p className="text-lg font-bold text-white">{stats.completed}</p>
+              <p className="text-xs text-green-300">{stats.completedAmount.toFixed(0)} MT</p>
             </div>
           </CardContent>
         </Card>
@@ -134,7 +142,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
               <div>
                 <h3 className="text-orange-400 font-bold text-sm">🚨 {stats.pending} Saques Aguardando!</h3>
                 <p className="text-orange-300 text-xs mt-1">
-                  Estes saques precisam ser processados o mais rápido possível.
+                  Total de {stats.pendingAmount.toFixed(2)} MT em saques aguardando processamento.
                 </p>
               </div>
             </div>
@@ -254,7 +262,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400 text-xs">Data:</span>
-                          <span className="text-gray-300 text-xs">{transaction.date}</span>
+                          <span className="text-gray-300 text-xs">{new Date(transaction.date).toLocaleString('pt-PT')}</span>
                         </div>
                       </div>
                       
@@ -317,7 +325,7 @@ const WithdrawalsManagement = ({ transactions, onUpdateTransaction }: Withdrawal
                           {getStatusBadge(transaction.status)}
                         </TableCell>
                         <TableCell className="text-gray-300 text-sm">
-                          {transaction.date}
+                          {new Date(transaction.date).toLocaleString('pt-PT')}
                         </TableCell>
                         <TableCell>
                           <Button

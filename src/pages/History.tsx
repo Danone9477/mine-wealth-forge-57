@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,17 +21,33 @@ const History = () => {
 
   const transactions = userData.transactions || [];
   const totalDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
-  const totalWithdraws = transactions.filter(t => t.type === 'withdraw' && t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
-  const pendingWithdraws = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calcular saques pendentes (status pending ou pendente)
+  const pendingWithdraws = transactions.filter(t => 
+    (t.type === 'withdraw' || t.type === 'withdrawal') && 
+    (t.status === 'pending' || t.status === 'pendente')
+  ).reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calcular total sacado (apenas os aprovados/pagos)
+  const totalWithdraws = transactions.filter(t => 
+    (t.type === 'withdraw' || t.type === 'withdrawal') && 
+    (t.status === 'success' || t.status === 'completed' || t.status === 'pago')
+  ).reduce((sum, t) => sum + t.amount, 0);
+  
   const failedDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'failed').length;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
+      case 'completed':
+      case 'pago':
         return <CheckCircle className="h-4 w-4 text-green-400" />;
       case 'failed':
+      case 'rejected':
+      case 'rejeitado':
         return <AlertTriangle className="h-4 w-4 text-red-400" />;
       case 'pending':
+      case 'pendente':
         return <Clock className="h-4 w-4 text-yellow-400" />;
       default:
         return <RefreshCw className="h-4 w-4 text-gray-400" />;
@@ -40,14 +57,24 @@ const History = () => {
   const getStatusBadge = (status: string) => {
     const variants = {
       success: 'bg-green-600 text-white',
+      completed: 'bg-green-600 text-white',
+      pago: 'bg-green-600 text-white',
       failed: 'bg-red-600 text-white',
-      pending: 'bg-yellow-600 text-white'
+      rejected: 'bg-red-600 text-white',
+      rejeitado: 'bg-red-600 text-white',
+      pending: 'bg-yellow-600 text-white',
+      pendente: 'bg-yellow-600 text-white'
     };
     
     const labels = {
       success: 'Sucesso',
+      completed: 'Pago',
+      pago: 'Pago',
       failed: 'Falhou',
-      pending: 'Pendente'
+      rejected: 'Rejeitado',
+      rejeitado: 'Rejeitado',
+      pending: 'Pendente',
+      pendente: 'Pendente'
     };
 
     return (
@@ -62,6 +89,7 @@ const History = () => {
       case 'deposit':
         return <ArrowDown className="h-4 w-4 text-green-400" />;
       case 'withdraw':
+      case 'withdrawal':
         return <ArrowUp className="h-4 w-4 text-red-400" />;
       case 'task':
         return <CheckCircle className="h-4 w-4 text-blue-400" />;
@@ -146,6 +174,23 @@ const History = () => {
           </Card>
         </div>
 
+        {/* Alerta de saques pendentes */}
+        {pendingWithdraws > 0 && (
+          <Card className="bg-gradient-to-r from-orange-900/30 to-orange-800/30 border-orange-700/50 backdrop-blur-sm mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Clock className="h-6 w-6 text-orange-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="text-orange-400 font-semibold text-sm">⏳ Saques em Processamento</h3>
+                  <p className="text-orange-300 text-xs mt-1">
+                    Você tem {pendingWithdraws.toFixed(2)} MT em saques aguardando aprovação. O processamento pode levar até 24 horas.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Transactions Table */}
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
@@ -189,7 +234,7 @@ const History = () => {
                           {getTypeIcon(transaction.type)}
                           <span className="text-gray-300 capitalize text-sm">
                             {transaction.type === 'deposit' ? 'Depósito' :
-                             transaction.type === 'withdraw' ? 'Saque' :
+                             (transaction.type === 'withdraw' || transaction.type === 'withdrawal') ? 'Saque' :
                              transaction.type === 'task' ? 'Tarefa' : transaction.type}
                           </span>
                         </TableCell>
@@ -200,10 +245,10 @@ const History = () => {
                         </TableCell>
                         <TableCell className={`font-semibold text-sm ${
                           transaction.type === 'deposit' ? 'text-green-400' :
-                          transaction.type === 'withdraw' ? 'text-red-400' :
+                          (transaction.type === 'withdraw' || transaction.type === 'withdrawal') ? 'text-red-400' :
                           'text-blue-400'
                         }`}>
-                          {transaction.type === 'withdraw' ? '-' : '+'}
+                          {(transaction.type === 'withdraw' || transaction.type === 'withdrawal') ? '-' : '+'}
                           {transaction.amount.toFixed(2)} MT
                         </TableCell>
                         <TableCell>
@@ -218,7 +263,9 @@ const History = () => {
                         <TableCell className="text-gray-400 text-xs hidden lg:table-cell">
                           <div className="max-w-[200px]">
                             {transaction.phoneNumber && `Tel: ${transaction.phoneNumber}`}
+                            {transaction.phone && `Tel: ${transaction.phone}`}
                             {transaction.paymentMethod && ` | ${transaction.paymentMethod.toUpperCase()}`}
+                            {transaction.method && ` | ${transaction.method.toUpperCase()}`}
                             {transaction.transactionId && ` | ID: ${transaction.transactionId}`}
                           </div>
                         </TableCell>
