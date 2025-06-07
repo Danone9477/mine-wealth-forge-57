@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift, Pickaxe, Trophy } from 'lucide-react';
+import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift, Pickaxe, Trophy, MessageCircle, ArrowDown, ArrowUp, History, ShoppingCart, Headphones } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from '@/hooks/use-toast';
 
@@ -163,6 +163,13 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openWhatsAppSupport = () => {
+    const phoneNumber = "853816787";
+    const message = encodeURIComponent("Olá! Preciso de suporte para a plataforma Mine Wealth.");
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (!userData) {
@@ -462,20 +469,112 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Button asChild className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 h-16 text-lg font-semibold">
-            <a href="/miners">🏗️ Comprar Minerador</a>
-          </Button>
-          <Button asChild variant="outline" className="border-green-500 text-green-400 hover:bg-green-500 hover:text-black h-16 text-lg font-semibold">
-            <a href="/deposit">💰 Fazer Depósito</a>
-          </Button>
-          <Button asChild variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-black h-16 text-lg font-semibold">
-            <a href="/withdraw">💸 Sacar Fundos</a>
-          </Button>
-          <Button asChild variant="outline" className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-black h-16 text-lg font-semibold">
-            <a href="/history">📊 Ver Histórico</a>
-          </Button>
+        {/* Professional Action Buttons Section */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-4">Ações Rápidas</h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Acesse todas as funcionalidades principais da plataforma com um clique
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {/* Comprar Minerador */}
+            <Card className="group bg-gradient-to-br from-gold-900/30 to-gold-800/30 border-gold-600/30 hover:border-gold-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-gold-500/20">
+              <CardContent className="p-6 text-center">
+                <div className="mb-4">
+                  <div className="bg-gradient-to-br from-gold-500 to-gold-600 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <ShoppingCart className="h-8 w-8 text-black" />
+                  </div>
+                </div>
+                <h3 className="text-gold-400 font-bold text-lg mb-2">Comprar Minerador</h3>
+                <p className="text-gray-400 text-sm mb-4">Invista em mineradores para gerar renda passiva diária</p>
+                <Button asChild className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700 font-semibold">
+                  <a href="/miners">
+                    <Pickaxe className="h-4 w-4 mr-2" />
+                    Investir Agora
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Fazer Depósito */}
+            <Card className="group bg-gradient-to-br from-green-900/30 to-green-800/30 border-green-600/30 hover:border-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/20">
+              <CardContent className="p-6 text-center">
+                <div className="mb-4">
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <ArrowDown className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-green-400 font-bold text-lg mb-2">Fazer Depósito</h3>
+                <p className="text-gray-400 text-sm mb-4">Adicione fundos à sua conta de forma rápida e segura</p>
+                <Button asChild className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 font-semibold">
+                  <a href="/deposit">
+                    <Coins className="h-4 w-4 mr-2" />
+                    Depositar
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Sacar Fundos */}
+            <Card className="group bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-600/30 hover:border-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20">
+              <CardContent className="p-6 text-center">
+                <div className="mb-4">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <ArrowUp className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-blue-400 font-bold text-lg mb-2">Sacar Fundos</h3>
+                <p className="text-gray-400 text-sm mb-4">Retire seus ganhos para sua conta bancária</p>
+                <Button asChild className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 font-semibold">
+                  <a href="/withdraw">
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Sacar
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Ver Histórico */}
+            <Card className="group bg-gradient-to-br from-purple-900/30 to-purple-800/30 border-purple-600/30 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20">
+              <CardContent className="p-6 text-center">
+                <div className="mb-4">
+                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <History className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-purple-400 font-bold text-lg mb-2">Ver Histórico</h3>
+                <p className="text-gray-400 text-sm mb-4">Acompanhe todas suas transações e movimentações</p>
+                <Button asChild className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 font-semibold">
+                  <a href="/history">
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Ver Histórico
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Suporte WhatsApp */}
+            <Card className="group bg-gradient-to-br from-emerald-900/30 to-emerald-800/30 border-emerald-600/30 hover:border-emerald-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20">
+              <CardContent className="p-6 text-center">
+                <div className="mb-4">
+                  <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Headphones className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-emerald-400 font-bold text-lg mb-2">Suporte</h3>
+                <p className="text-gray-400 text-sm mb-4">Fale conosco via WhatsApp para ajuda instantânea</p>
+                <Button 
+                  onClick={openWhatsAppSupport}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 font-semibold"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Suporte
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
