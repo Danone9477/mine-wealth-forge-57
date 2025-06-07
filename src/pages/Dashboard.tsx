@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift, Pickaxe, Trophy, MessageCircle, ArrowDown, ArrowUp, History, ShoppingCart, Headphones } from 'lucide-react';
+import { Coins, TrendingUp, Clock, Zap, Calendar, CheckCircle, Gift, Pickaxe, Trophy, MessageCircle, ArrowDown, ArrowUp, History, ShoppingCart, Headphones, Wallet } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from '@/hooks/use-toast';
 
