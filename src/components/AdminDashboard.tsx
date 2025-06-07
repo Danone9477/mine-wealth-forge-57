@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -17,11 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 import WithdrawalsManagement from './WithdrawalsManagement';
 import EditUserBalanceModal from './EditUserBalanceModal';
+import ManualDepositModal from './ManualDepositModal';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -32,6 +32,7 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editUserModalOpen, setEditUserModalOpen] = useState(false);
+  const [manualDepositModalOpen, setManualDepositModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -253,6 +254,81 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleManualDeposit = async (email: string, amount: number, description: string) => {
+    try {
+      console.log('Processando depósito manual:', { email, amount, description });
+
+      // Buscar usuário pelo email
+      const usersRef = collection(db, 'users');
+      const userQuery = query(usersRef, where('email', '==', email));
+      const userSnapshot = await getDocs(userQuery);
+
+      if (userSnapshot.empty) {
+        throw new Error('Usuário não encontrado com este email');
+      }
+
+      let userData = null;
+      let userId = null;
+
+      userSnapshot.forEach((doc) => {
+        userData = doc.data();
+        userId = doc.id;
+      });
+
+      if (!userData || !userId) {
+        throw new Error('Dados do usuário não encontrados');
+      }
+
+      // Criar transação
+      const transaction = {
+        id: `manual_${Date.now()}`,
+        type: 'deposit' as const,
+        amount: amount,
+        status: 'completed' as const,
+        date: new Date().toISOString(),
+        description: `Depósito Manual: ${description}`,
+        paymentMethod: 'manual',
+        source: 'admin',
+        processedBy: user?.email || 'admin'
+      };
+
+      // Atualizar saldo e histórico
+      const newBalance = (userData.balance || 0) + amount;
+      const updatedTransactions = [...(userData.transactions || []), transaction];
+
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        balance: newBalance,
+        transactions: updatedTransactions
+      });
+
+      // Atualizar estado local
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { 
+              ...user, 
+              balance: newBalance,
+              transactionCount: updatedTransactions.length,
+              depositCount: updatedTransactions.filter(t => t.type === 'deposit').length
+            }
+          : user
+      ));
+
+      setTransactions(prev => [...prev, {
+        ...transaction,
+        userId,
+        username: userData.username,
+        email: userData.email
+      }]);
+
+      console.log('Depósito manual processado com sucesso');
+
+    } catch (error) {
+      console.error('Erro no depósito manual:', error);
+      throw error;
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -297,6 +373,12 @@ const AdminDashboard = () => {
             <p className="text-xs text-green-400 mt-1">✅ Firebase Conectado • {users.length} usuários</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              onClick={() => setManualDepositModalOpen(true)}
+              className="bg-green-600 hover:bg-green-700 text-xs"
+            >
+              💰 Depósito Manual
+            </Button>
             <Button variant="outline" onClick={fetchRealData} disabled={loading} className="text-xs">
               🔄 Atualizar
             </Button>
@@ -827,6 +909,13 @@ const AdminDashboard = () => {
           onUpdateBalance={handleUpdateUserBalance}
         />
       )}
+
+      {/* Modal de depósito manual */}
+      <ManualDepositModal
+        isOpen={manualDepositModalOpen}
+        onClose={() => setManualDepositModalOpen(false)}
+        onDeposit={handleManualDeposit}
+      />
     </div>
   );
 };
