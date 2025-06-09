@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +19,12 @@ const History = () => {
   }
 
   const transactions = userData.transactions || [];
-  const totalDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calcular corretamente todos os depósitos (incluindo manuais)
+  const totalDeposits = transactions.filter(t => 
+    t.type === 'deposit' && 
+    (t.status === 'success' || t.status === 'completed' || t.status === 'pago')
+  ).reduce((sum, t) => sum + t.amount, 0);
   
   // Calcular saques pendentes (status pending ou pendente)
   const pendingWithdraws = transactions.filter(t => 
@@ -34,7 +38,14 @@ const History = () => {
     (t.status === 'success' || t.status === 'completed' || t.status === 'pago')
   ).reduce((sum, t) => sum + t.amount, 0);
   
-  const failedDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'failed').length;
+  // Calcular ganhos de mineração e tarefas
+  const totalEarnings = transactions.filter(t => 
+    (t.type === 'task' || t.type === 'mining' || t.type === 'earnings') && 
+    (t.status === 'success' || t.status === 'completed')
+  ).reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calcular saldo disponível corretamente
+  const availableBalance = totalDeposits + totalEarnings - totalWithdraws - pendingWithdraws;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -123,7 +134,7 @@ const History = () => {
           </p>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards - Corrigidos */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700">
             <CardContent className="p-3 sm:p-6">
@@ -131,6 +142,7 @@ const History = () => {
                 <div>
                   <p className="text-green-400 font-medium text-xs sm:text-sm">Total Depositado</p>
                   <p className="text-lg sm:text-2xl font-bold text-white">{totalDeposits.toFixed(2)} MT</p>
+                  <p className="text-green-300 text-xs">Incluindo depósitos manuais</p>
                 </div>
                 <ArrowDown className="h-6 w-6 sm:h-8 sm:w-8 text-green-400 flex-shrink-0" />
               </div>
@@ -143,6 +155,7 @@ const History = () => {
                 <div>
                   <p className="text-red-400 font-medium text-xs sm:text-sm">Total Sacado</p>
                   <p className="text-lg sm:text-2xl font-bold text-white">{totalWithdraws.toFixed(2)} MT</p>
+                  <p className="text-red-300 text-xs">Apenas saques processados</p>
                 </div>
                 <ArrowUp className="h-6 w-6 sm:h-8 sm:w-8 text-red-400 flex-shrink-0" />
               </div>
@@ -155,6 +168,7 @@ const History = () => {
                 <div>
                   <p className="text-yellow-400 font-medium text-xs sm:text-sm">Saques Pendentes</p>
                   <p className="text-lg sm:text-2xl font-bold text-white">{pendingWithdraws.toFixed(2)} MT</p>
+                  <p className="text-yellow-300 text-xs">Aguardando processamento</p>
                 </div>
                 <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400 flex-shrink-0" />
               </div>
@@ -165,14 +179,43 @@ const History = () => {
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gold-400 font-medium text-xs sm:text-sm">Saldo Atual</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">{userData.balance.toFixed(2)} MT</p>
+                  <p className="text-gold-400 font-medium text-xs sm:text-sm">Saldo Disponível</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{availableBalance.toFixed(2)} MT</p>
+                  <p className="text-gold-300 text-xs">Saldo atual calculado</p>
                 </div>
                 <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-gold-400 flex-shrink-0" />
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Resumo Detalhado */}
+        <Card className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border-blue-700/50 backdrop-blur-sm mb-6">
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-blue-400 font-semibold text-lg mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              📊 Resumo Financeiro Detalhado
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div className="bg-blue-900/20 p-3 rounded-lg">
+                <p className="text-blue-300">Ganhos de Mineração:</p>
+                <p className="text-white font-bold text-lg">{totalEarnings.toFixed(2)} MT</p>
+              </div>
+              <div className="bg-green-900/20 p-3 rounded-lg">
+                <p className="text-green-300">Total de Entradas:</p>
+                <p className="text-white font-bold text-lg">{(totalDeposits + totalEarnings).toFixed(2)} MT</p>
+              </div>
+              <div className="bg-red-900/20 p-3 rounded-lg">
+                <p className="text-red-300">Total de Saídas:</p>
+                <p className="text-white font-bold text-lg">{(totalWithdraws + pendingWithdraws).toFixed(2)} MT</p>
+              </div>
+              <div className="bg-gold-900/20 p-3 rounded-lg">
+                <p className="text-gold-300">Lucro Líquido:</p>
+                <p className="text-white font-bold text-lg">{(totalEarnings - totalWithdraws).toFixed(2)} MT</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Alerta de saques pendentes */}
         {pendingWithdraws > 0 && (

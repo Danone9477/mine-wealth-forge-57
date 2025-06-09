@@ -1,10 +1,10 @@
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Coins, TrendingUp, Shield, Users, Star, CheckCircle, Smartphone, Wallet, Globe, Award, Target, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import CryptoSection from '@/components/CryptoSection';
+import MinerRobotEffect from '@/components/MinerRobotEffect';
 
 const Index = () => {
   const { user } = useAuth();
@@ -92,7 +92,10 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden relative">
+      {/* Efeito do Robô Minerador */}
+      <MinerRobotEffect />
+      
       {/* Hero Section */}
       <section className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-gold-600/10 to-purple-600/10"></div>
